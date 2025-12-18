@@ -1,5 +1,5 @@
 remote_theme: julianolf/jekyll-theme-8bit
 plugins:
 - jekyll-remote-theme # add this line to the plugins list if you already have one
-title: Brimbles's homepage
+title: "Brimbles's homepage"
 description: Bookmark this to keep an eye on my project updates!
