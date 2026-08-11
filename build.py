@@ -176,7 +176,8 @@ def build():
         out_path.write_text(post_html, encoding="utf-8")
         print(f"  Built: posts/{slug}.html")
 
-        posts.append({"title": title, "date": date, "summary": summary, "slug": slug})
+        thumbnail = meta.get("thumbnail", "")
+        posts.append({"title": title, "date": date, "summary": summary, "slug": slug, "thumbnail": thumbnail})
 
     # Sort by date, newest first
     posts.sort(key=lambda p: p["date"], reverse=True)
@@ -184,10 +185,18 @@ def build():
     # Build index
     items = ""
     for post in posts:
+        if post["thumbnail"]:
+            thumb_html = f'        <img class="project-thumb" src="{post["thumbnail"]}" alt="{post["title"]}">\n'
+        else:
+            thumb_html = f'        <div class="project-thumb-placeholder">&gt;_</div>\n'
+
         items += f'      <li>\n'
-        items += f'        <a href="posts/{post["slug"]}.html">{post["title"]}</a>\n'
-        items += f'        <span class="post-date">{post["date"]}</span>\n'
-        items += f'        <p>{post["summary"]}</p>\n'
+        items += thumb_html
+        items += f'        <div class="project-info">\n'
+        items += f'          <a href="posts/{post["slug"]}.html">{post["title"]}</a>\n'
+        items += f'          <span class="post-date">{post["date"]}</span>\n'
+        items += f'          <p>{post["summary"]}</p>\n'
+        items += f'        </div>\n'
         items += f'      </li>\n'
 
     index_html = INDEX_TEMPLATE.format(items=items)

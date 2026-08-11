@@ -2,6 +2,7 @@
 title: Building a DIY Mechanical Keyboard
 date: 2020-12-16
 summary: 3D-printed Sick-68 build with Gateron Browns and a Teensy 2.0
+thumbnail: assets/images/sick68-keyboard/final_keyboard.jpg
 ---
 
 Now that more of us are working from home than ever before, it's becoming more important to have a permanent, comfortable setup. At least that's how I convinced myself to build my own mechanical keyboard.
