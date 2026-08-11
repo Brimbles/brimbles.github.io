@@ -1,2 +1,2 @@
 # brimbles.github.io
-my github pages website 
+My personal site. Plain HTML/CSS, hosted on GitHub Pages.

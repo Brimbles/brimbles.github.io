@@ -1,0 +1,135 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 16px;
+  line-height: 1.7;
+  padding: 2rem;
+  max-width: 750px;
+  margin: 0 auto;
+}
+
+a {
+  color: #7fdbca;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+header {
+  margin-bottom: 3rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #333;
+}
+
+header h1 {
+  color: #7fdbca;
+  font-size: 1.4rem;
+  font-weight: normal;
+}
+
+header p {
+  color: #888;
+  font-size: 0.85rem;
+  margin-top: 0.3rem;
+}
+
+h2 {
+  color: #c792ea;
+  font-size: 1.1rem;
+  margin-top: 2.5rem;
+  margin-bottom: 0.8rem;
+  font-weight: normal;
+}
+
+h3 {
+  color: #ffcb6b;
+  font-size: 1rem;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  font-weight: normal;
+}
+
+p {
+  margin-bottom: 1rem;
+}
+
+ul {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+li {
+  margin-bottom: 0.4rem;
+}
+
+li::marker {
+  color: #7fdbca;
+}
+
+img {
+  max-width: 100%;
+  border-radius: 4px;
+  margin: 1.5rem 0;
+  border: 1px solid #333;
+}
+
+.post {
+  margin-bottom: 4rem;
+}
+
+.post-title {
+  color: #c792ea;
+  font-size: 1.2rem;
+  font-weight: normal;
+}
+
+.post-date {
+  color: #666;
+  font-size: 0.8rem;
+  margin-bottom: 1.5rem;
+}
+
+.prompt::before {
+  content: "> ";
+  color: #7fdbca;
+}
+
+.project-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.project-list li {
+  margin-bottom: 1.5rem;
+  padding-left: 1rem;
+  border-left: 2px solid #333;
+}
+
+.project-list li a {
+  font-size: 1rem;
+  color: #7fdbca;
+}
+
+.project-list li p {
+  color: #888;
+  font-size: 0.85rem;
+  margin-top: 0.2rem;
+  margin-bottom: 0;
+}
+
+footer {
+  margin-top: 4rem;
+  padding-top: 1rem;
+  border-top: 1px solid #333;
+  color: #555;
+  font-size: 0.8rem;
+}
