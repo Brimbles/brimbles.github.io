@@ -134,8 +134,8 @@ button:focus-visible,select:focus-visible,.songcard:focus-visible,canvas:focus-v
 .mic-btn svg{width:22px;height:22px;fill:currentColor}
 .mic-btn.on{background:var(--soft);color:var(--ink)}
 .mic-live{display:flex;align-items:center;gap:12px}
-.level{flex:1;height:14px;border-radius:7px;background:var(--soft);overflow:hidden;margin:0}
-.level i{display:block;height:100%;width:0;background:var(--good);border-radius:7px;transition:width .06s linear}
+.mic-level{flex:1;height:14px;border-radius:7px;background:var(--soft);overflow:hidden;margin:0}
+.mic-level i{display:block;height:100%;width:0;background:var(--good);border-radius:7px;transition:width .06s linear}
 .heard{font-family:var(--display);font-weight:600;font-size:24px;min-width:3.2em;text-align:right;font-variant-numeric:tabular-nums}
 .mic-msg{font-size:14px;color:var(--muted)}
 .mic-msg.err{color:var(--warn);font-weight:700}
@@ -663,7 +663,7 @@ function renderMicPanel(host){
   host.append(...[
     h("button",{class:"mic-btn"+(on?" on":""),id:"micBtn",onclick:()=>{ on?micStop():micStart(); },
       html:(on?ICON.micOff+"Stop listening":ICON.mic+"Listen to me")}),
-    on?h("div",{class:"mic-live"},h("span",{class:"dot-live","aria-hidden":"true"}),h("div",{class:"level","aria-label":"How loud I hear you"},h("i",{id:"micLevel"})),h("span",{class:"heard",id:"micHeard","aria-live":"polite"},"–")):null,
+    on?h("div",{class:"mic-live"},h("span",{class:"dot-live","aria-hidden":"true"}),h("div",{class:"mic-level","aria-label":"How loud I hear you"},h("i",{id:"micLevel"})),h("span",{class:"heard",id:"micHeard","aria-live":"polite"},"–")):null,
     h("div",{class:"mic-msg"+((mic.state==="denied"||mic.state==="blocked")?" err":"")},MIC_MSG[mic.state]||"")].filter(Boolean));
 }
 
