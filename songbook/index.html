@@ -1,0 +1,1240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#3A271E">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+<title>Three-String Songbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap">
+<style>
+/* Layout: home = song cards by level. Song = animal band, then one wide horizontal fretboard where note bars scroll right-to-left onto a "now" line, then controls + microphone panel. */
+:root{
+  --bg:#EEF3F8; --surface:#FFFFFF; --ink:#1D2433; --muted:#5B6577; --line:#D5DEE9;
+  --accent:#3B5BDB; --accent-ink:#FFFFFF; --soft:#E3EAF7;
+  --s0:#F0643C; --s1:#E9A20B; --s2:#1BA38A; --on-string:#16202E;
+  --wood:#4A3328; --wood-2:#3A271E; --fret:#C9CED6; --inlay:#E9DCCB; --hit:#FFFFFF;
+  --gold:#F5B400; --good:#1E9E5A; --warn:#C7581E;
+  /* animal band (illustration colours, same in both themes) */
+  --bear:#8B5A3C; --bear-2:#D9B08C; --cat:#F29E4C; --cat-2:#FFE0BD; --frog:#4FB062; --frog-2:#BDE8A8;
+  --bird:#4DA3FF; --bird-2:#CFE6FF; --pink:#F59AB5; --dark:#2A1E1A; --white:#FFFFFF; --brass:#F5C542; --beak:#F5A524; --stick:#E8C08A; --bass:#D64545;
+  --display:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  --body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121826; --surface:#1B2335; --ink:#EEF2F8; --muted:#9AA6BA; --line:#2C3850;
+  --accent:#7C95FF; --accent-ink:#0F1524; --soft:#243050;
+  --s0:#FF7A55; --s1:#FFBE3B; --s2:#33C9AB;
+  --wood:#3D2A21; --wood-2:#2A1C15; --fret:#AEB4BE; --inlay:#CDBFAE; --hit:#FFFFFF;
+  --good:#3FCF83; --warn:#FF9A5C; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#121826; --surface:#1B2335; --ink:#EEF2F8; --muted:#9AA6BA; --line:#2C3850;
+  --accent:#7C95FF; --accent-ink:#0F1524; --soft:#243050;
+  --s0:#FF7A55; --s1:#FFBE3B; --s2:#33C9AB;
+  --wood:#3D2A21; --wood-2:#2A1C15; --fret:#AEB4BE; --inlay:#CDBFAE; --hit:#FFFFFF;
+  --good:#3FCF83; --warn:#FF9A5C; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-tap-highlight-color:transparent}
+.wrap{max-width:1080px;margin:0 auto;padding-block:20px 40px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;font-weight:600}
+button,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;touch-action:manipulation}
+button:focus-visible,select:focus-visible,.songcard:focus-visible,canvas:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+
+/* ---------- Home ---------- */
+.hero{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px}
+.hero h1{font-size:clamp(30px,6vw,44px);line-height:1.05}
+.hero p{margin:6px 0 0;color:var(--muted);max-width:52ch}
+.strings-key{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 10px;border-radius:15px;
+  font-family:var(--display);font-weight:600;font-size:15px;color:var(--on-string)}
+.chip.s0{background:var(--s0)} .chip.s1{background:var(--s1)} .chip.s2{background:var(--s2)}
+.chip.off{background:var(--soft);color:var(--muted)}
+.pill-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;background:var(--surface);
+  border:1.5px solid var(--line);font-weight:800;font-size:15px}
+.pill-btn:hover{border-color:var(--accent)}
+.pill-btn svg{width:18px;height:18px;fill:currentColor}
+.level{margin-top:26px}
+.level-head{display:flex;align-items:baseline;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.level-head h2{font-size:22px}
+.level-head span{color:var(--muted);font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.songcard{text-align:left;background:var(--surface);border:1.5px solid var(--line);border-radius:18px;padding:16px;
+  display:flex;flex-direction:column;gap:10px;transition:transform .12s,border-color .12s}
+.songcard:hover{border-color:var(--accent);transform:translateY(-2px)}
+.songcard h3{font-size:20px}
+.songcard .meta{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.songcard .chips{display:flex;gap:5px}
+.songcard .chips .chip{min-width:26px;height:26px;font-size:13px;padding:0 8px}
+.songcard .sub{color:var(--muted);font-size:14px}
+.stars{display:flex;gap:2px}
+.stars svg{width:20px;height:20px}
+.star-on{fill:var(--gold)} .star-off{fill:var(--soft)}
+.tip{margin-top:30px;background:var(--surface);border:1.5px dashed var(--line);border-radius:18px;padding:16px 18px;color:var(--muted);font-size:15px}
+.tip b{color:var(--ink)}
+.stats{display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;background:var(--surface);border:1.5px solid var(--line);border-radius:18px;padding:14px 18px;margin-bottom:6px}
+.stats .rank{font-family:var(--display);font-weight:600;font-size:22px}
+.stats .lbl{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.stats .num{font-family:var(--display);font-weight:600;font-size:22px;font-variant-numeric:tabular-nums}
+.stats .grow{flex:1;min-width:180px}
+.meter{height:12px;border-radius:6px;background:var(--soft);overflow:hidden;margin-top:6px}
+.meter i{display:block;height:100%;background:var(--gold);border-radius:6px}
+
+/* ---------- Song view ---------- */
+.topbar{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.back{width:46px;height:46px;border-radius:50%;background:var(--surface);border:1.5px solid var(--line);display:grid;place-items:center;flex:none}
+.back svg{width:22px;height:22px;stroke:var(--ink)}
+.topbar h2{font-size:clamp(22px,4.5vw,30px);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar .stars svg{width:22px;height:22px}
+.pts{font-family:var(--display);font-weight:600;font-size:16px;background:var(--soft);border-radius:999px;padding:6px 12px;font-variant-numeric:tabular-nums;flex:none;white-space:nowrap}
+.pts.bump{animation:bump .35s ease-out}
+@keyframes bump{40%{transform:scale(1.18)}}
+
+.board-card{background:var(--wood-2);border-radius:22px;overflow:hidden;margin-bottom:14px}
+.board-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px 6px;color:var(--white);flex-wrap:wrap}
+.lyric{font-family:var(--display);font-weight:600;font-size:clamp(28px,5vw,44px);line-height:1;min-height:1em;min-width:0}
+.where{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}
+.where .big{font-family:var(--display);font-weight:600;font-size:clamp(17px,2.8vw,22px)}
+.where .small{color:var(--inlay);font-size:14px}
+.board-card canvas{display:block;width:100%;height:clamp(210px,34vh,330px);touch-action:manipulation;cursor:pointer}
+.feedback{min-height:1.4em;padding:4px 18px 12px;font-weight:800;font-size:16px;color:var(--inlay)}
+.feedback.good{color:var(--good)} .feedback.warn{color:var(--warn)}
+
+.panel{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px;align-items:start}
+.card{background:var(--surface);border:1.5px solid var(--line);border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card h3{font-size:18px}
+.shifted{font-size:13px;color:var(--muted);background:var(--soft);border-radius:10px;padding:6px 10px}
+.seg{display:inline-flex;background:var(--soft);border-radius:999px;padding:4px;gap:2px;align-self:flex-start}
+.seg button{padding:9px 14px;border-radius:999px;font-weight:800;font-size:14px;color:var(--muted);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border-radius:999px;font-weight:800;font-size:16px;background:var(--soft);color:var(--ink);white-space:nowrap}
+.btn svg{width:20px;height:20px;fill:currentColor}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.big{padding:16px 28px;font-size:20px;font-family:var(--display);font-weight:600;justify-content:center}
+.btn:disabled{opacity:.45;cursor:default}
+.note-text{font-weight:700;font-size:14px;color:var(--muted)}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:14px;color:var(--muted);cursor:pointer;user-select:none}
+.toggle input{width:20px;height:20px;accent-color:var(--accent)}
+.stepbar{display:flex;gap:10px;align-items:center}
+.stepbar .grow{flex:1}
+
+/* microphone */
+.mic-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:14px 20px;border-radius:999px;font-family:var(--display);font-weight:600;font-size:19px;background:var(--accent);color:var(--accent-ink)}
+.mic-btn svg{width:22px;height:22px;fill:currentColor}
+.mic-btn.on{background:var(--soft);color:var(--ink)}
+.mic-live{display:flex;align-items:center;gap:12px}
+.level{flex:1;height:14px;border-radius:7px;background:var(--soft);overflow:hidden;margin:0}
+.level i{display:block;height:100%;width:0;background:var(--good);border-radius:7px;transition:width .06s linear}
+.heard{font-family:var(--display);font-weight:600;font-size:24px;min-width:3.2em;text-align:right;font-variant-numeric:tabular-nums}
+.mic-msg{font-size:14px;color:var(--muted)}
+.mic-msg.err{color:var(--warn);font-weight:700}
+.dot-live{width:10px;height:10px;border-radius:50%;background:var(--warn);animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.3}}
+
+/* tuner needle */
+.needle{position:relative;width:100%;height:44px;border-radius:12px;background:var(--soft);overflow:hidden}
+.needle .mid{position:absolute;left:50%;top:6px;bottom:6px;width:3px;margin-left:-1.5px;background:var(--good);border-radius:2px}
+.needle .ptr{position:absolute;top:8px;bottom:8px;width:10px;margin-left:-5px;border-radius:5px;background:var(--ink);left:50%;transition:left .1s linear}
+.tuner-read{font-family:var(--display);font-weight:600;font-size:20px;min-height:1.4em}
+.tuner-read.good{color:var(--good)}
+
+/* animal band */
+.band-card{background:linear-gradient(var(--surface),var(--soft));border:1.5px solid var(--line);border-radius:22px;padding:10px 14px 0;margin-bottom:14px;overflow:hidden}
+.band-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.band-head h3{font-size:17px}
+.band-head span{color:var(--muted);font-size:13px;font-weight:700}
+.band svg{display:block;width:100%;height:clamp(100px,13vw,150px)}
+.band .tap{cursor:pointer}
+.band .idle{animation:breathe 3.2s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
+.band .idle.d2{animation-delay:-.8s} .band .idle.d3{animation-delay:-1.6s} .band .idle.d4{animation-delay:-2.4s}
+@keyframes breathe{50%{transform:scale(1.025,.985)}}
+.band .mv{transform-box:fill-box;transform-origin:50% 100%}
+.band .bop{animation:bop .32s ease-out}
+@keyframes bop{35%{transform:translateY(5px)}}
+.band .swayL{animation:swayL .55s ease-in-out} .band .swayR{animation:swayR .55s ease-in-out}
+@keyframes swayL{50%{transform:rotate(-6deg)}} @keyframes swayR{50%{transform:rotate(6deg)}}
+.band .armL{transform-box:fill-box;transform-origin:100% 0%} .band .armR{transform-box:fill-box;transform-origin:0% 100%}
+.band .hitL{animation:hitL .2s ease-out} .band .hitR{animation:hitR .2s ease-out}
+@keyframes hitL{40%{transform:rotate(-24deg)}} @keyframes hitR{40%{transform:rotate(22deg)}}
+.band .hand{transform-box:fill-box;transform-origin:50% 50%}
+.band .press{animation:press .25s ease-out}
+@keyframes press{40%{transform:translateY(5px)}}
+.band .beak-open{opacity:0}
+.band .sing{animation:sing .38s ease-out}
+@keyframes sing{0%,100%{opacity:0}15%,70%{opacity:1}}
+.band .fnote{font-family:var(--display);font-weight:700;font-size:22px;fill:var(--accent);transform-box:fill-box;animation:floatUp 1.3s ease-out forwards}
+@keyframes floatUp{from{transform:translate(0,0);opacity:1}to{transform:translate(-22px,-52px);opacity:0}}
+.band .jump{animation:jump .5s ease-out 3}
+@keyframes jump{40%{transform:translateY(-16px)}}
+
+/* overlays */
+.overlay{position:fixed;inset:0;background:rgba(10,14,24,.55);display:grid;place-items:center;z-index:50;overflow:auto;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.dialog{background:var(--surface);border-radius:24px;padding:24px 22px;max-width:460px;width:100%;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center;position:relative;overflow:hidden}
+.dialog h3{font-size:28px}
+.dialog p{margin:0;color:var(--muted)}
+.dialog .stars svg{width:44px;height:44px}
+.dialog .row{justify-content:center}
+.presets{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.presets button{padding:8px 14px;border-radius:999px;background:var(--soft);font-weight:800;font-size:14px}
+.presets button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.tuner{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%}
+.tstring{display:flex;flex-direction:column;align-items:center;gap:8px}
+.tstring button.play{width:72px;height:72px;border-radius:50%;font-family:var(--display);font-weight:700;font-size:26px;color:var(--on-string)}
+.tstring small{font-weight:800;font-size:12px;color:var(--muted)}
+.tstring select{border:1.5px solid var(--line);border-radius:10px;padding:6px 8px;background:var(--surface);font-weight:700}
+.confetti{position:absolute;top:-12px;width:9px;height:14px;border-radius:2px;animation:fall 1.8s ease-in forwards}
+@keyframes fall{to{transform:translateY(520px) rotate(540deg);opacity:0}}
+.countin{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;z-index:40}
+.countin span{font-family:var(--display);font-weight:700;font-size:160px;color:var(--accent);opacity:.9;text-shadow:0 2px 12px rgba(0,0,0,.25)}
+
+@media (max-width:820px){
+  .panel{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:560px){
+  .card{padding:12px;border-radius:18px}
+  .where{align-items:flex-start;text-align:left}
+  .seg{align-self:stretch;justify-content:center}
+  .seg button{padding:9px 10px;font-size:13px}
+  .btn.big{padding:14px 20px;font-size:19px}
+  .band-head span{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+
+<div class="wrap" id="app"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ======================= Tuning ======================= */
+// Strings are numbered low → high: 0 = thickest, 2 = thinnest.
+const STD=[55,59,64];   // G3 B3 E4: the Loog factory tuning (top three strings of a normal guitar)
+const PRESETS=[
+  {id:"std",  name:"Loog standard (G B E)", notes:[55,59,64]},
+  {id:"openG",name:"Open G (G D G)",        notes:[55,62,67]},
+  {id:"openA",name:"Open A (A E A)",        notes:[57,64,69]},
+  {id:"adg",  name:"A D G",                 notes:[57,62,67]}
+];
+const NAMES=["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"];
+const nm=m=>NAMES[((m%12)+12)%12];
+const nmOct=m=>nm(m)+(Math.floor(m/12)-1);
+const THICK=["thickest","middle","thinnest"];
+const KEY="threeStringSongbook.v1";
+let tuning=STD.slice();
+try{ const t=JSON.parse(localStorage.getItem(KEY+".tuning")); if(Array.isArray(t)&&t.length===3&&t.every(n=>n>=40&&n<=80)) tuning=t; }catch(e){}
+const isStd=()=>tuning.every((n,i)=>n===STD[i]);
+const sName=i=>nm(tuning[i]);
+const sLabel=i=>{ const n=sName(i); const dup=tuning.filter(x=>nm(x)===n).length>1; return (dup?(i===0?"low ":i===2?"high ":""):"")+n+" string"; };
+
+/* ======================= Songs ======================= */
+// Authored for Loog standard tuning: <string G|B|E><fret>[-beats]. "|" = phrase end. Lyrics: one per note.
+const SONGS=[
+ {id:"choo", title:"Choo-Choo Train", blurb:"Our own warm-up",
+  notes:"G0 G0 G2-2 | G0 G0 G2-2 | G0 G2 G4 G2 G0-4",
+  lyrics:"Choo choo train, choo choo train, down the track we go!"},
+ {id:"buns", title:"Hot Cross Buns", blurb:"Three notes, one string",
+  notes:"B3 B1 B0-2 | B3 B1 B0-2 | B0-.5 B0-.5 B0-.5 B0-.5 B1-.5 B1-.5 B1-.5 B1-.5 | B3 B1 B0-2",
+  lyrics:"Hot cross buns, hot cross buns, one a pen- ny, two a pen- ny, hot cross buns!"},
+ {id:"sun", title:"Sun and Moon", blurb:"Just frets 0 and 3",
+  notes:"E3 E0-2 | E3 E3 E0-2 | E3 E3 E0 E0 | E3 E3 E0-2",
+  lyrics:"Sun, moon, stars at night, twin- kle twin- kle shi- ning bright!"},
+ {id:"rain", title:"Rain, Rain, Go Away", blurb:"Adds a stretch to fret 5",
+  notes:"E3 E0 E3 E3 E0-2 | E3 E3 E0 E0 E3 E3 E0-2 | E5 E5 E3 E3 E0 E3 E0-2",
+  lyrics:"Rain, rain, go a- way, come a- gain an- oth- er day, lit- tle chil- dren want to play."},
+ {id:"mary", title:"Mary Had a Little Lamb", blurb:"Hop between two strings",
+  notes:"E0 B3 B1 B3 E0 E0 E0-2 | B3 B3 B3-2 E0 E3 E3-2 | E0 B3 B1 B3 E0 E0 E0 E0 | B3 B3 E0 B3 B1-4",
+  lyrics:"Ma- ry had a lit- tle lamb, lit- tle lamb, lit- tle lamb, Ma- ry had a lit- tle lamb, its fleece was white as snow."},
+ {id:"ode", title:"Ode to Joy", blurb:"A famous tune by Beethoven",
+  notes:"B0 B0 B1 B3 B3 B1 B0 G2 G0 G0 G2 B0 B0-1.5 G2-.5 G2-2 | B0 B0 B1 B3 B3 B1 B0 G2 G0 G0 G2 B0 G2-1.5 G0-.5 G0-2",
+  lyrics:""},
+ {id:"jingle", title:"Jingle Bells", blurb:"Lots of open B string",
+  notes:"B0 B0 B0-2 | B0 B0 B0-2 | B0 B3 G0-1.5 G2-.5 B0-4 | B1 B1 B1-1.5 B1-.5 B1 B0 B0 B0-.5 B0-.5 | B0 G2 G2 B0 G2-2 B3-2 | B0 B0 B0-2 | B0 B0 B0-2 | B0 B3 G0-1.5 G2-.5 B0-4 | B1 B1 B1-1.5 B1-.5 B1 B0 B0 B0-.5 B0-.5 | B3 B3 B1 G2 G0-4",
+  lyrics:"Jin- gle bells, jin- gle bells, jin- gle all the way! Oh what fun it is to ride in a one horse o- pen sleigh, hey! Jin- gle bells, jin- gle bells, jin- gle all the way! Oh what fun it is to ride in a one horse o- pen sleigh!"},
+ {id:"mountain", title:"In the Hall of the Mountain King", blurb:"Grieg's sneaky tune. Starts slow, then try Fast!",
+  notes:"G2-.5 B0-.5 B1-.5 B3-.5 E0-.5 B1-.5 E0 | B4-.5 B0-.5 B4 | B3-.5 G3-.5 B3 | G2-.5 B0-.5 B1-.5 B3-.5 E0-.5 B1-.5 E0-.5 E5-.5 | E3-.5 E0-.5 B1-.5 E0-.5 E3-2 | G2-.5 B0-.5 B1-.5 B3-.5 E0-.5 B1-.5 E0 | B4-.5 B0-.5 B4 | B3-.5 G3-.5 B3 | G2-.5 B0-.5 B1-.5 B3-.5 E0-.5 B1-.5 E0-.5 E5-.5 | E3-2 E5-2",
+  lyrics:""},
+ {id:"twinkle", title:"Twinkle, Twinkle, Little Star", blurb:"All three strings",
+  notes:"G0 G0 B3 B3 E0 E0 B3-2 | B1 B1 B0 B0 G2 G2 G0-2 | B3 B3 B1 B1 B0 B0 G2-2 | B3 B3 B1 B1 B0 B0 G2-2 | G0 G0 B3 B3 E0 E0 B3-2 | B1 B1 B0 B0 G2 G2 G0-2",
+  lyrics:"Twin- kle, twin- kle, lit- tle star, how I won- der what you are! Up a- bove the world so high, like a dia- mond in the sky. Twin- kle, twin- kle, lit- tle star, how I won- der what you are!"},
+ {id:"oldmac", title:"Old MacDonald", blurb:"E-I-E-I-O!",
+  notes:"B3 B3 B3 G2 B0 B0 G2-2 | E2 E2 E0 E0 B3-3 | G2 B3 B3 B3 G2 B0 B0 G2-2 | E2 E2 E0 E0 B3-3",
+  lyrics:"Old Mac- Don- ald had a farm, E- I- E- I- O! And on that farm he had a cow, E- I- E- I- O!"},
+ {id:"row", title:"Row, Row, Row Your Boat", blurb:"Climbs up all three strings",
+  notes:"G0 G0 G0-.75 G2-.25 B0-2 | B0-.75 G2-.25 B0-.75 B1-.25 B3-3 | E3-.34 E3-.33 E3-.33 B3-.34 B3-.33 B3-.33 B0-.34 B0-.33 B0-.33 G0-.34 G0-.33 G0-.33 | B3-.75 B1-.25 B0-.75 G2-.25 G0-3",
+  lyrics:"Row, row, row your boat, gent- ly down the stream. Mer- ri- ly, mer- ri- ly, mer- ri- ly, mer- ri- ly, life is but a dream."},
+ {id:"birthday", title:"Happy Birthday", blurb:"Play it at the next party",
+  notes:"G0-.75 G0-.25 G2 G0 B1 B0-2 | G0-.75 G0-.25 G2 G0 B3 B1-2 | G0-.75 G0-.25 E3 E0 B1 B0 G2-2 | E1-.75 E1-.25 E0 B1 B3 B1-2",
+  lyrics:"Hap- py birth- day to you, hap- py birth- day to you, hap- py birth- day dear fri- end, hap- py birth- day to you!"},
+ {id:"jacques", title:"Frère Jacques", blurb:"Are you sleeping?",
+  notes:"B1 B3 E0 B1 | B1 B3 E0 B1 | E0 E1 E3-2 | E0 E1 E3-2 | E3-.5 E5-.5 E3-.5 E1-.5 E0 B1 | E3-.5 E5-.5 E3-.5 E1-.5 E0 B1 | B1 G0 B1-2 | B1 G0 B1-2",
+  lyrics:"Are you sleep- ing, are you sleep- ing, Bro- ther John? Bro- ther John? Morn- ing bells are ring- ing, morn- ing bells are ring- ing, ding, dang, dong! Ding, dang, dong!"}
+];
+// Key of each song (pitch class of the home note) so the band can pick chords. pickup = beats before bar 1.
+const KEYINFO={choo:{kp:7},buns:{kp:7},sun:{kp:0},rain:{kp:0},mary:{kp:0},ode:{kp:7},jingle:{kp:7},
+  mountain:{kp:9,minor:true},twinkle:{kp:7},oldmac:{kp:2},row:{kp:7},birthday:{kp:0,pickup:1},jacques:{kp:0}};
+SONGS.forEach(s=>Object.assign(s,{kp:0,minor:false,pickup:0},KEYINFO[s.id]));
+const AUTH_IDX={G:0,B:1,E:2};
+
+function parseSong(song){
+  const toks=song.notes.trim().split(/\s+/);
+  const lyr=song.lyrics?song.lyrics.trim().split(/\s+/):[];
+  const notes=[]; let li=0, beat=0;
+  for(const t of toks){
+    if(t==="|"){ if(notes.length) notes[notes.length-1].barAfter=true; continue; }
+    const m=/^([GBE])(\d+)(?:-([\d.]+))?$/.exec(t);
+    if(!m) throw new Error("Bad note "+t+" in "+song.id);
+    const si=AUTH_IDX[m[1]], f=+m[2];
+    const n={as:si, af:f, midi:STD[si]+f, beats:m[3]?parseFloat(m[3]):1, lyric:lyr[li++]||"", start:beat, idx:notes.length};
+    beat+=n.beats; notes.push(n);
+  }
+  song.list=notes; song.total=beat;
+}
+SONGS.forEach(parseSong);
+
+/* Fit every song to the current tuning: choose string + fret for each note.
+   Standard tuning keeps the hand-written fingering. Other tunings: try key shifts,
+   then pick the easiest path (low frets, few string jumps). */
+function fit(song){
+  let best=null;
+  if(isStd()){
+    song.list.forEach(n=>{ n.s=n.as; n.f=n.af; n.m=n.midi; });
+    best={shift:0};
+  } else {
+    const shifts=[0]; for(let k=1;k<=12;k++){ shifts.push(k,-k); }
+    for(const t of shifts){
+      const cands=song.list.map(n=>{ const p=n.midi+t, c=[]; for(let i=0;i<3;i++){ const f=p-tuning[i]; if(f>=0&&f<=12) c.push({s:i,f}); } return c; });
+      if(cands.some(c=>!c.length)) continue;
+      const fc=f=>f===0?0:0.6*f+(f>4?(f-4)*1.4:0);
+      let prev=cands[0].map(c=>({cost:fc(c.f),back:-1}));
+      const trail=[prev];
+      for(let k=1;k<cands.length;k++){
+        const cur=cands[k].map(c=>{
+          let bc=Infinity,bi=0;
+          cands[k-1].forEach((p,j)=>{ const tc=prev[j].cost+1.3*Math.abs(c.s-p.s)+(c.f&&p.f?0.3*Math.abs(c.f-p.f):0); if(tc<bc){bc=tc;bi=j;} });
+          return {cost:bc+fc(c.f),back:bi};
+        });
+        trail.push(cur); prev=cur;
+      }
+      let end=0; prev.forEach((p,j)=>{ if(p.cost<prev[end].cost) end=j; });
+      const score=prev[end].cost/cands.length+0.12*Math.abs(t);
+      if(!best||score<best.score){
+        const path=[]; let j=end;
+        for(let k=cands.length-1;k>=0;k--){ path[k]=cands[k][j]; j=trail[k][j].back; }
+        best={score,shift:t,path};
+      }
+    }
+    if(best) song.list.forEach((n,k)=>{ n.s=best.path[k].s; n.f=best.path[k].f; n.m=n.midi+best.shift; });
+  }
+  song.ok=!!best; song.shift=best?best.shift:0;
+  if(!best) return;
+  song.used=[0,1,2].filter(i=>song.list.some(n=>n.s===i));
+  song.maxFret=Math.max(...song.list.map(n=>n.f));
+  song.level=song.used.length;
+}
+function fitAll(){ SONGS.forEach(fit); }
+fitAll();
+
+/* ======================= Progress + points ======================= */
+let progress={};
+try{ progress=JSON.parse(localStorage.getItem(KEY)||"{}")||{}; }catch(e){ progress={}; }
+function saveProgress(){ try{ localStorage.setItem(KEY,JSON.stringify(progress)); }catch(e){} }
+function starsFor(id){ const p=progress[id]||{}; return (p.step?1:0)+(p.along?1:0)+(p.fast?1:0); }
+const totalStars=()=>SONGS.reduce((a,s)=>a+starsFor(s.id),0);
+const totalPoints=()=>progress.__points||0;
+const RANKS=[[0,"Sprout Strummer"],[300,"Bedroom Rocker"],[1000,"Garage Band Hero"],[2500,"Stage Star"],[5000,"Rock Legend"],[10000,"Guitar Wizard"]];
+function rankOf(p){ let k=0; RANKS.forEach((r,i)=>{ if(p>=r[0]) k=i; }); return {name:RANKS[k][1],at:RANKS[k][0],next:RANKS[k+1]||null}; }
+function addPoints(n){
+  progress.__points=totalPoints()+n; view.runPts+=n; saveProgress();
+  const el=$("#pts"); if(el){ el.textContent=view.runPts+" pts"; el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); }
+}
+const NOTE_PTS={step:10,slow:10,medium:15,fast:20};
+const HIT_RATE=0.6;   // share of notes she must hit (when listening) to earn a Play-along star
+
+/* ======================= Sound ======================= */
+let ctx=null, master=null; const bufCache={}; let live=[];
+function audio(){
+  if(!ctx){
+    const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return null;
+    ctx=new AC(); master=ctx.createGain(); master.gain.value=0.8;
+    const lp=ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=3800;
+    master.connect(lp); lp.connect(ctx.destination);
+  }
+  if(ctx.state==="suspended") ctx.resume();
+  return ctx;
+}
+const hz=m=>440*Math.pow(2,(m-69)/12);
+function pluckBuffer(fr){   // Karplus–Strong plucked string
+  const k=fr.toFixed(2); if(bufCache[k]) return bufCache[k];
+  const sr=ctx.sampleRate, len=Math.floor(sr*2.2), N=Math.round(sr/fr);
+  const buf=ctx.createBuffer(1,len,sr), d=buf.getChannelData(0);
+  for(let i=0;i<N;i++) d[i]=(Math.random()*2-1)*0.6;
+  for(let i=N;i<len;i++) d[i]=0.4985*(d[i-N]+d[i-N-1]);
+  for(let i=0;i<64;i++) d[i]*=i/64;
+  return bufCache[k]=buf;
+}
+function pluck(m,when,vol){
+  const c=audio(); if(!c) return;
+  const src=c.createBufferSource(); src.buffer=pluckBuffer(hz(m));
+  const g=c.createGain(); g.gain.value=vol==null?0.9:vol;
+  src.connect(g); g.connect(master); src.start(when||c.currentTime);
+  if(!when) mic.ignoreUntil=c.currentTime+1.1;   // don't mistake our own sound for her playing
+  live.push(src); src.onended=()=>{ live=live.filter(x=>x!==src); };
+}
+function tick(when,accent){
+  const c=audio(); if(!c) return;
+  const o=c.createOscillator(), g=c.createGain();
+  o.frequency.value=accent?1500:1000;
+  g.gain.setValueAtTime(0.0001,when); g.gain.exponentialRampToValueAtTime(accent?0.35:0.2,when+0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001,when+0.06);
+  o.connect(g); g.connect(c.destination); o.start(when); o.stop(when+0.08);
+  live.push(o); o.onended=()=>{ live=live.filter(x=>x!==o); };
+}
+function hush(){ live.forEach(n=>{ try{n.stop();}catch(e){} }); live=[]; }
+
+/* ---- the animal band's instruments ---- */
+let bandBus=null, noiseBuf=null;
+function bus(){ if(!bandBus){ bandBus=ctx.createGain(); bandBus.connect(ctx.destination); } bandBus.gain.value=mic.on?0.3:0.45; return bandBus; }
+function noise(){
+  if(!noiseBuf){ const len=Math.floor(ctx.sampleRate*1.2); noiseBuf=ctx.createBuffer(1,len,ctx.sampleRate); const d=noiseBuf.getChannelData(0); for(let i=0;i<len;i++) d[i]=Math.random()*2-1; }
+  return noiseBuf;
+}
+function track(n){ live.push(n); n.onended=()=>{ live=live.filter(x=>x!==n); }; }
+function kickAt(t){
+  const o=ctx.createOscillator(), g=ctx.createGain();
+  o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(45,t+0.12);
+  g.gain.setValueAtTime(0.9,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.3);
+  o.connect(g); g.connect(bus()); o.start(t); o.stop(t+0.32); track(o);
+}
+function noiseAt(t,freq,type,vol,dur){
+  const s=ctx.createBufferSource(); s.buffer=noise();
+  const f=ctx.createBiquadFilter(); f.type=type; f.frequency.value=freq;
+  const g=ctx.createGain(); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  s.connect(f); f.connect(g); g.connect(bus()); s.start(t); s.stop(t+dur+0.02); track(s);
+}
+function toneAt(m,t,dur,type,vol,lp){
+  const o=ctx.createOscillator(); o.type=type; o.frequency.value=hz(m);
+  const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+0.015); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  let node=o; if(lp){ const f=ctx.createBiquadFilter(); f.type="lowpass"; f.frequency.value=lp; o.connect(f); node=f; }
+  node.connect(g); g.connect(bus()); o.start(t); o.stop(t+dur+0.05); track(o);
+}
+const snareAt=t=>{ noiseAt(t,1400,"highpass",0.4,0.16); toneAt(55,t,0.08,"triangle",0.25); };
+const hatAt=(t,v)=>noiseAt(t,7000,"highpass",v,0.05);
+const crashAt=t=>noiseAt(t,4500,"highpass",0.25,1.1);
+const bassAt=(m,t,dur)=>{ toneAt(m,t,dur,"triangle",0.6,900); toneAt(m,t,dur,"sawtooth",0.1,450); };
+const keysAt=(ms,t,dur)=>ms.forEach(m=>toneAt(m,t,dur,"triangle",0.08,2200));
+// While listening, the bass drops an octave so the microphone isn't fooled by it.
+const bassNote=pc=>(mic.on?28:40)+((pc-4+12)%12);
+const keyNotes=pcs=>pcs.map(pc=>52+((pc-4+12)%12)).sort((a,b)=>a-b);
+
+/* Pick simple chords (I, IV, V, vi / i, iv, V, VI) to fit each 2-beat chunk of the tune. */
+function harmonize(song){
+  const root=((song.kp+song.shift)%12+12)%12;
+  const set=song.minor?[[0,[0,3,7]],[5,[5,8,0]],[7,[7,11,2]],[8,[8,0,3]]]:[[0,[0,4,7]],[5,[5,9,0]],[7,[7,11,2]],[9,[9,0,4]]];
+  const bounds=[0]; let x=song.pickup||2;
+  while(x<song.total-0.01){ bounds.push(x); x+=2; }
+  bounds.push(song.total);
+  const out=[]; let prev=-1;
+  for(let i=0;i<bounds.length-1;i++){
+    const from=bounds[i], to=bounds[i+1]; let best=0, bs=-1e9;
+    set.forEach(([deg,pcs],k)=>{
+      const p=pcs.map(q=>(q+root)%12); let s=0;
+      song.list.forEach(n=>{
+        const ov=Math.min(to,n.start+n.beats)-Math.max(from,n.start); if(ov<=0) return;
+        const inC=p.includes(((n.m%12)+12)%12);
+        s+=ov*(inC?1:-0.4); if(inC&&Math.abs(n.start-from)<0.01) s+=0.5;
+      });
+      if(k===0) s+=0.2; if(k===prev) s+=0.1;
+      if(i===bounds.length-2&&k===0) s+=100;
+      if(s>bs){ bs=s; best=k; }
+    });
+    prev=best;
+    out.push({from,to,root:(root+set[best][0])%12,pcs:set[best][1].map(q=>(q+root)%12)});
+  }
+  return out;
+}
+function scheduleBand(song,startAt,beat){
+  const ch=harmonize(song), beats=Math.ceil(song.total-0.01);
+  for(let b=0;b<beats;b++){
+    const t=startAt+b*beat, bb=((b-song.pickup)%4+4)%4;
+    if(bb===0||bb===2) kickAt(t); else snareAt(t);
+    hatAt(t,0.1); hatAt(t+beat/2,0.06);
+    const c=ch.find(c=>b>=c.from-0.001&&b<c.to-0.001)||ch[ch.length-1];
+    bassAt(bassNote(c.root)+(b%2?7:0),t,beat*0.85);
+    // keyboard chords sit in the guitar's range, so they rest while the microphone is listening
+    if(!mic.on&&(bb===0||bb===2||Math.abs(b-c.from)<0.01)) keysAt(keyNotes(c.pcs),t,beat*1.7);
+  }
+  const end=startAt+song.total*beat;
+  kickAt(end); crashAt(end); bassAt(bassNote(ch[ch.length-1].root),end,beat*2);
+}
+
+/* ======================= Listening (microphone pitch detection) ======================= */
+const mic={on:false,state:"off",stream:null,an:null,buf:null,timer:0,level:0,midi:null,mf:null,
+  hist:[],lastOnset:-1,pendingOnset:-1,lastEmit:null,lastEmitAt:-1,stable:null,stableN:0,ignoreUntil:0,lastHeardAt:0};
+let yinD=null;
+function yin(x,sr){
+  const n=x.length; let s=0; for(let i=0;i<n;i++) s+=x[i]*x[i];
+  const rms=Math.sqrt(s/n);
+  if(rms<0.006) return {rms};
+  const minT=Math.floor(sr/1200), maxT=Math.min(Math.floor(sr/95),(n>>1)-1), W=n-maxT;
+  if(!yinD||yinD.length<maxT+2) yinD=new Float32Array(maxT+2);
+  const d=yinD; d[0]=1; let run=0;
+  for(let t=1;t<=maxT;t++){
+    let sum=0; for(let j=0;j<W;j++){ const v=x[j]-x[j+t]; sum+=v*v; }
+    run+=sum; d[t]=run?sum*t/run:1;
+  }
+  let tau=-1;
+  for(let t=minT;t<=maxT;t++){ if(d[t]<0.15){ while(t+1<=maxT&&d[t+1]<d[t]) t++; tau=t; break; } }
+  if(tau<0){
+    let b=1,bt=-1; for(let t=minT;t<=maxT;t++) if(d[t]<b){b=d[t];bt=t;}
+    if(b>=0.25) return {rms};
+    // the deepest dip is often a whole number of periods: prefer the shortest period that is nearly as good
+    for(let k=4;k>=2;k--){
+      const c=Math.round(bt/k); if(c<minT) continue;
+      let lt=c; for(let t=Math.max(minT,c-3);t<=Math.min(maxT,c+3);t++) if(d[t]<d[lt]) lt=t;
+      if(d[lt]<b+0.08){ bt=lt; break; }
+    }
+    tau=bt;
+  }
+  let bt=tau;
+  if(tau>1&&tau<maxT){ const a=d[tau-1],b=d[tau],c=d[tau+1], den=a+c-2*b; if(den) bt=tau+(a-c)/(2*den); }
+  return {rms,f:sr/bt,clarity:1-d[tau]};
+}
+async function micStart(){
+  const c=audio(); if(!c) return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ mic.state="blocked"; micUI(); return; }
+  mic.state="asking"; micUI();
+  try{
+    mic.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+  }catch(e){
+    mic.state=(e&&e.name==="NotAllowedError")?"denied":"blocked"; micUI(); return;
+  }
+  if(c.state==="suspended") await c.resume();
+  const src=c.createMediaStreamSource(mic.stream);
+  mic.an=c.createAnalyser(); mic.an.fftSize=2048; src.connect(mic.an);
+  mic.buf=new Float32Array(mic.an.fftSize);
+  mic.on=true; mic.state="on"; mic.hist=[]; mic.lastEmit=null;
+  mic.timer=setInterval(micTick,25);
+  try{ localStorage.setItem(KEY+".mic","1"); }catch(e){}
+  micUI(); if(view.song){ renderMode(); setFeedback(); }
+}
+function micStop(){
+  clearInterval(mic.timer); mic.timer=0;
+  if(mic.stream) mic.stream.getTracks().forEach(t=>t.stop());
+  mic.stream=null; mic.on=false; mic.state="off"; mic.midi=null; mic.level=0;
+  try{ localStorage.setItem(KEY+".mic","0"); }catch(e){}
+  micUI(); if(view.song){ renderMode(); setFeedback(); }
+}
+function micTick(){
+  if(!mic.an) return;
+  mic.an.getFloatTimeDomainData(mic.buf);
+  const r=yin(mic.buf,ctx.sampleRate), now=ctx.currentTime;
+  mic.level=r.rms;
+  // a new pluck = a jump in loudness
+  mic.hist.push(r.rms); if(mic.hist.length>8) mic.hist.shift();
+  const floor=Math.min(...mic.hist.slice(0,-1));
+  if(r.rms>0.012&&r.rms>floor*1.7&&now-mic.lastOnset>0.16){
+    mic.lastOnset=now;
+    // only trust pitches measured after the pluck, not the old note still in the buffer
+    if(now-mic.lastEmitAt>0.16){ mic.pendingOnset=now; mic.stable=null; mic.stableN=0; }
+  }
+  if(mic.pendingOnset>0&&now-mic.pendingOnset>0.3) mic.pendingOnset=-1;
+  if(r.f&&r.clarity>0.72&&now>=mic.ignoreUntil){
+    const mf=69+12*Math.log2(r.f/440), mr=Math.round(mf);
+    mic.mf=mf; mic.midi=mr; mic.lastHeardAt=now;
+    if(mr===mic.stable) mic.stableN++; else { mic.stable=mr; mic.stableN=1; }
+    // one event per pluck: a new onset, or the pitch moving to a different note (not within 160 ms of the last event)
+    const fresh=mic.pendingOnset>0||(mr!==mic.lastEmit&&now-mic.lastEmitAt>0.16);
+    if(mic.stableN>=2&&fresh){
+      const t=(mic.pendingOnset>0?mic.pendingOnset:now)-0.05;
+      mic.lastEmit=mr; mic.pendingOnset=-1; mic.lastEmitAt=now;
+      heard({midi:mr,mf,time:t});
+    }
+  } else {
+    mic.stableN=0;
+    if(now-mic.lastHeardAt>0.35){ mic.midi=null; mic.mf=null; }
+    if(r.rms<0.005) mic.lastEmit=null;
+  }
+  micUI(true);
+}
+function micUI(live){
+  const lv=$("#micLevel"); if(lv) lv.style.width=Math.min(100,Math.round(mic.level*600))+"%";
+  const hn=$("#micHeard"); if(hn) hn.textContent=mic.midi!=null?nm(mic.midi):"–";
+  tunerUI();
+  if(live) return;
+  document.querySelectorAll("[data-mic-panel]").forEach(renderMicPanel);
+}
+const MIC_MSG={
+  off:"Turn on listening so I can hear your guitar and wait for the right notes.",
+  asking:"Say yes when your device asks to use the microphone.",
+  on:"Listening. Play loud enough that the green bar moves.",
+  denied:"The microphone was blocked. Allow it in your browser's settings for this page, then try again.",
+  blocked:"This page can't use the microphone here. Open the songbook from its own web address to use listening."
+};
+function renderMicPanel(host){
+  host.innerHTML="";
+  const on=mic.on;
+  host.append(...[
+    h("button",{class:"mic-btn"+(on?" on":""),id:"micBtn",onclick:()=>{ on?micStop():micStart(); },
+      html:(on?ICON.micOff+"Stop listening":ICON.mic+"Listen to me")}),
+    on?h("div",{class:"mic-live"},h("span",{class:"dot-live","aria-hidden":"true"}),h("div",{class:"level","aria-label":"How loud I hear you"},h("i",{id:"micLevel"})),h("span",{class:"heard",id:"micHeard","aria-live":"polite"},"–")):null,
+    h("div",{class:"mic-msg"+((mic.state==="denied"||mic.state==="blocked")?" err":"")},MIC_MSG[mic.state]||"")].filter(Boolean));
+}
+
+/* ======================= Wake lock ======================= */
+let wake=null;
+async function keepAwake(on){
+  try{
+    if(on&&!wake&&navigator.wakeLock){ wake=await navigator.wakeLock.request("screen"); wake.addEventListener("release",()=>{wake=null;}); }
+    if(!on&&wake){ await wake.release(); wake=null; }
+  }catch(e){ wake=null; }
+}
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&view.song) keepAwake(true); });
+
+/* ======================= Helpers ======================= */
+const $=(sel,el)=>(el||document).querySelector(sel);
+function h(tag,attrs,...kids){
+  const el=document.createElement(tag);
+  if(attrs) for(const k in attrs){
+    const v=attrs[k]; if(v==null||v===false) continue;
+    if(k==="class") el.className=v; else if(k==="html") el.innerHTML=v;
+    else if(k.startsWith("on")) el.addEventListener(k.slice(2),v);
+    else el.setAttribute(k,v===true?"":v);
+  }
+  for(const kid of kids.flat()){ if(kid==null||kid===false) continue; el.append(kid.nodeType?kid:document.createTextNode(kid)); }
+  return el;
+}
+const STAR='<path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/>';
+function starRow(n){ let s=""; for(let i=0;i<3;i++) s+='<svg viewBox="0 0 24 24" class="'+(i<n?"star-on":"star-off")+'">'+STAR+'</svg>'; return h("div",{class:"stars",html:s,"aria-label":n+" of 3 stars"}); }
+const ICON={
+  play:'<svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg>',
+  stop:'<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+  ear:'<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>',
+  next:'<svg viewBox="0 0 24 24"><path d="M5 5v14l9-7zm10 0h3v14h-3z"/></svg>',
+  prev:'<svg viewBox="0 0 24 24"><path d="M19 5v14l-9-7zM6 5h3v14H6z"/></svg>',
+  again:'<svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>',
+  mic:'<svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11z"/></svg>',
+  micOff:'<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+  guitar:'<svg viewBox="0 0 24 24"><path d="M19.6 2.3l2.1 2.1-1.4 1.4-.7-.7-3.9 3.9.7.7-1.4 1.4-.7-.7-.9.9c.9 1.6.8 3.5-.4 4.7-.7.7-1.6 1-2.5 1.1-.1.9-.4 1.8-1.1 2.5-1.7 1.7-4.8 1.4-6.8-.6s-2.3-5.1-.6-6.8c.7-.7 1.6-1 2.5-1.1.1-.9.4-1.8 1.1-2.5 1.2-1.2 3.1-1.3 4.7-.4l.9-.9-.7-.7 1.4-1.4.7.7 3.9-3.9-.7-.7zM8.5 13a1.5 1.5 0 1 0 2.1 2.1A1.5 1.5 0 0 0 8.5 13z"/></svg>'
+};
+
+/* ======================= State + routing ======================= */
+const view={song:null,mode:"along",idx:0,speed:"slow",band:true,tune:false,playing:false,timers:[],startAt:0,beatSec:1,beat:0,raf:0,
+  runPts:0,maxIdx:0,lastBeat:-99,along:false,first:false,waitT:0};
+const SPEEDS={slow:{bpm:52,label:"Slow"},medium:{bpm:72,label:"Medium"},fast:{bpm:96,label:"Fast"}};
+try{
+  const g=localStorage.getItem(KEY+".band"); if(g!=null) view.band=g==="1";
+  const tn=localStorage.getItem(KEY+".tune"); if(tn!=null) view.tune=tn==="1";
+  const sp=localStorage.getItem(KEY+".speed"); if(SPEEDS[sp]) view.speed=sp;
+}catch(e){}
+
+function route(){
+  const m=/^#song-([a-z]+)$/.exec(location.hash);
+  const song=m&&SONGS.find(s=>s.id===m[1]&&s.ok);
+  stopPlay(); closeBoard();
+  document.querySelectorAll(".overlay").forEach(o=>o.remove());
+  if(song) openSong(song); else renderHome();
+}
+window.addEventListener("hashchange",route);
+
+/* ======================= Home ======================= */
+function renderHome(){
+  view.song=null; keepAwake(false);
+  const app=$("#app"); app.innerHTML="";
+  app.append(
+    h("header",{class:"hero"},
+      h("div",null,
+        h("h1",null,"Three-String Songbook"),
+        h("p",null,"Easy songs for a 3-string guitar. Notes slide along the strings to the play line. Turn on listening and the app hears you play.")),
+      h("div",{class:"strings-key"},
+        ...[0,1,2].map(i=>h("span",{class:"chip s"+i,title:sLabel(i)+" ("+THICK[i]+")"},sName(i))),
+        h("button",{class:"pill-btn",onclick:openTuning,html:ICON.guitar+"My guitar &amp; tuner"})))
+  );
+  const pts=totalPoints(), rk=rankOf(pts);
+  const pct=rk.next?Math.round(100*(pts-rk.at)/(rk.next[0]-rk.at)):100;
+  app.append(h("section",{class:"stats","aria-label":"Your progress"},
+    h("div",{class:"grow"},
+      h("div",{class:"lbl"},"Your rank"),
+      h("div",{class:"rank"},rk.name),
+      h("div",{class:"meter",title:pct+"% of the way"},h("i",{style:"width:"+pct+"%"})),
+      h("div",{class:"lbl",style:"margin-top:6px;letter-spacing:0;text-transform:none;font-weight:700"},
+        rk.next?(rk.next[0]-pts)+" more points to become a "+rk.next[1]:"Top rank. Amazing!")),
+    h("div",null,h("div",{class:"lbl"},"Points"),h("div",{class:"num"},pts.toLocaleString())),
+    h("div",null,h("div",{class:"lbl"},"Stars"),h("div",{class:"num"},totalStars()+" / "+SONGS.length*3))));
+  const levels=[[1,"One string","Stay on one string the whole time"],[2,"Two strings","Move between two strings"],[3,"All three strings","Use the whole guitar"]];
+  for(const [lv,name,desc] of levels){
+    const songs=SONGS.filter(s=>s.ok&&s.level===lv); if(!songs.length) continue;
+    app.append(h("section",{class:"level"},
+      h("div",{class:"level-head"},h("h2",null,name),h("span",null,desc)),
+      h("div",{class:"grid"},...songs.map(songCard))));
+  }
+  app.append(h("div",{class:"tip",html:
+    "<b>Stars and points:</b> every song has three stars. Get one in Practice, one in Play along, and one in Play along at Fast speed. "+
+    "With listening on, you need to hit at least 6 notes out of every 10 to earn a Play along star. Every note earns points, with bonuses for finishing and for new stars.<br><br>"+
+    "<b>How to read it:</b> each coloured line is a string, thickest at the top. Each coloured bar is a note, and a longer bar means a longer note. "+
+    "The number is the fret: press just behind that metal bar. <b>0</b> means play the string open, with no finger at all."+
+    (isStd()?"":"<br><br><b>Your tuning:</b> "+tuning.map(nmOct).join(" · ")+". The songs have been re-worked to fit it.")}));
+}
+function songCard(song){
+  return h("button",{class:"songcard",onclick:()=>{location.hash="song-"+song.id;}},
+    h("h3",null,song.title),
+    h("div",{class:"sub"},song.blurb+" · "+song.list.length+" notes"),
+    h("div",{class:"meta"},
+      h("div",{class:"chips"},...[0,1,2].map(i=>h("span",{class:"chip "+(song.used.includes(i)?"s"+i:"off")},sName(i)))),
+      starRow(starsFor(song.id))));
+}
+
+/* ---- tuning + tuner dialog ---- */
+function openTuning(){
+  const ov=h("div",{class:"overlay",onclick:(e)=>{ if(e.target===ov) close(); }});
+  const close=()=>{ ov.remove(); if(!view.song) renderHome(); };
+  const body=h("div",{class:"dialog",role:"dialog","aria-modal":"true","aria-label":"My guitar and tuner"});
+  function draw(){
+    body.innerHTML="";
+    const pre=PRESETS.find(p=>p.notes.every((n,i)=>n===tuning[i]));
+    body.append(
+      h("h3",null,"My guitar"),
+      h("p",null,"Loog guitars come tuned G B E. If yours is tuned differently, pick it here and every song is re-worked to fit."),
+      h("div",{class:"presets"},...PRESETS.map(p=>h("button",{"aria-pressed":String(pre===p),onclick:()=>{ setTuning(p.notes.slice()); draw(); }},p.name))),
+      h("div",{class:"tuner"},...[0,1,2].map(i=>{
+        const sel=h("select",{id:"tune"+i,"aria-label":"Note for the "+THICK[i]+" string",onchange:(e)=>{ const t=tuning.slice(); t[i]=+e.target.value; setTuning(t); draw(); }});
+        for(let m=48;m<=72;m++) sel.append(h("option",{value:m,selected:m===tuning[i]},nmOct(m)));
+        return h("div",{class:"tstring"},
+          h("button",{class:"play",style:"background:var(--s"+i+")","aria-label":"Hear the "+THICK[i]+" string",onclick:()=>pluck(tuning[i])},sName(i)),
+          h("small",null,THICK[i]), sel);
+      })),
+      h("p",{style:"font-size:14px"},"Tap a coloured circle to hear a string. Or turn on listening and pluck one string at a time: the tuner tells you which way to turn the peg."),
+      h("div",{style:"width:100%;display:flex;flex-direction:column;gap:10px;align-items:center","data-mic-panel":""}),
+      h("div",{class:"tuner-read",id:"tunerRead","aria-live":"polite"}),
+      h("div",{class:"needle","aria-hidden":"true"},h("span",{class:"mid"}),h("span",{class:"ptr",id:"tunerPtr"})),
+      h("button",{class:"btn primary",onclick:close},"Done"));
+    body.querySelectorAll("[data-mic-panel]").forEach(renderMicPanel);
+    tunerUI();
+  }
+  draw(); ov.append(body); document.body.append(ov);
+}
+function tunerUI(){
+  const rd=$("#tunerRead"), ptr=$("#tunerPtr"); if(!rd||!ptr) return;
+  if(!mic.on||mic.mf==null){ rd.textContent=mic.on?"Pluck one string…":""; rd.className="tuner-read"; ptr.style.left="50%"; return; }
+  let best=0; tuning.forEach((t,i)=>{ if(Math.abs(mic.mf-t)<Math.abs(mic.mf-tuning[best])) best=i; });
+  const off=mic.mf-tuning[best];
+  if(Math.abs(off)>2.5){ rd.textContent="I hear "+nm(mic.midi)+". That's not near any of your strings."; rd.className="tuner-read"; ptr.style.left=(off<0?4:96)+"%"; return; }
+  const cents=Math.round(off*100);
+  ptr.style.left=Math.max(4,Math.min(96,50+cents/2.2))+"%";
+  if(Math.abs(cents)<=8){ rd.textContent=sLabel(best)+": perfect!"; rd.className="tuner-read good"; }
+  else rd.textContent=sLabel(best)+(cents<0?": too low, tighten the peg a little":": too high, loosen the peg a little"), rd.className="tuner-read";
+}
+function setTuning(t){
+  tuning=t; try{ localStorage.setItem(KEY+".tuning",JSON.stringify(t)); }catch(e){}
+  fitAll();
+}
+
+/* ======================= Song view ======================= */
+function openSong(song){
+  view.song=song; view.idx=0; view.beat=-3; view.runPts=0; view.maxIdx=0; keepAwake(true);
+  song.list.forEach(n=>{ n.hit=false; n.miss=false; });
+  const app=$("#app"); app.innerHTML="";
+  const top=h("div",{class:"topbar"},
+    h("button",{class:"back","aria-label":"Back to all songs",onclick:()=>{location.hash="";},html:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>'}),
+    h("h2",null,song.title),
+    h("span",{id:"songStars"},starRow(starsFor(song.id))),
+    h("span",{class:"pts",id:"pts",title:"Points this time"},"0 pts"));
+  const bandToggle=h("label",{class:"toggle"},h("input",{type:"checkbox",id:"bandToggle",checked:view.band,onchange:(e)=>{
+    view.band=e.target.checked; try{localStorage.setItem(KEY+".band",view.band?"1":"0");}catch(_){}
+    if(view.playing){ stopPlay(); startPlay(view.along); } }}),"Band plays along");
+  const bandCard=h("section",{class:"band-card"},
+    h("div",{class:"band-head"},h("h3",null,"The Woodland Band"),h("span",null,"Bruno on drums, Clem on bass, Ribbit on keys and Pip singing. Tap them!"),bandToggle),
+    h("div",{class:"band",id:"band"}));
+  buildBand(bandCard.querySelector("#band"));
+  const board=h("section",{class:"board-card"},
+    h("div",{class:"board-top"},
+      h("div",{class:"lyric",id:"lyric"}),
+      h("div",{class:"where"},h("div",{class:"big",id:"whereBig"}),h("div",{class:"small",id:"whereSmall"}))),
+    h("canvas",{id:"board",tabindex:"0","aria-label":"The fretboard. Coloured bars slide along the strings to the white play line."}),
+    h("div",{class:"feedback",id:"feedback","aria-live":"polite"}));
+  const ctrlCard=h("section",{class:"card"},
+    h("div",{class:"seg",role:"group","aria-label":"How to play"},
+      segBtn("along","Play along"),segBtn("practice","Practice"),segBtn("listen","Listen first")),
+    h("div",{class:"row",id:"modeExtras"}),
+    h("div",{id:"modeMain"}),
+    song.shift?h("div",{class:"shifted"},"This song has been moved "+(song.shift>0?"up":"down")+" to fit your tuning, so it sounds a little "+(song.shift>0?"higher":"lower")+" than usual."):null);
+  const micCard=h("section",{class:"card"},h("h3",null,"Listening"),h("div",{style:"display:flex;flex-direction:column;gap:10px","data-mic-panel":""}));
+  app.append(top,bandCard,board,h("div",{class:"panel"},ctrlCard,micCard));
+  renderMicPanel(micCard.querySelector("[data-mic-panel]"));
+  renderMode(); update(); setFeedback();
+  startBoard();
+}
+function segBtn(mode,label){
+  return h("button",{"aria-pressed":String(view.mode===mode),"data-mode":mode,onclick:()=>setMode(mode)},label);
+}
+function setMode(mode){
+  stopPlay(); view.mode=mode; resetRun();
+  document.querySelectorAll(".seg button[data-mode]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.mode===mode)));
+  renderMode(); update(); setFeedback();
+}
+function resetRun(){ view.idx=0; view.maxIdx=0; view.song.list.forEach(n=>{ n.hit=false; n.miss=false; }); }
+function renderMode(){
+  const ex=$("#modeExtras"), main=$("#modeMain"); if(!ex) return; ex.innerHTML=""; main.innerHTML="";
+  if(view.mode==="practice"){
+    ex.append(h("button",{class:"btn",onclick:hearCurrent,html:ICON.ear+"Hear this note"}));
+    main.append(h("div",{class:"stepbar"},
+      h("button",{class:"btn big","aria-label":"Previous note",id:"prevBtn",onclick:()=>go(-1,true),html:ICON.prev}),
+      h("button",{class:(mic.on?"btn":"btn primary")+" big grow",id:"nextBtn",onclick:()=>go(1,!mic.on),
+        html:ICON.next+"<span>"+(mic.on?"Skip this note":"I played it!")+"</span>"})));
+    ex.append(h("span",{class:"note-text"},mic.on?"I'll wait until I hear the right note.":"Turn on listening and I'll wait for each note."));
+  } else if(view.mode==="along"){
+    const sp=h("div",{class:"seg",role:"group","aria-label":"Speed"},
+      ...Object.keys(SPEEDS).map(k=>h("button",{"aria-pressed":String(view.speed===k),onclick:(e)=>{
+        view.speed=k; try{localStorage.setItem(KEY+".speed",k);}catch(_){}
+        e.currentTarget.parentNode.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed","false"));
+        e.currentTarget.setAttribute("aria-pressed","true"); if(view.playing){ stopPlay(); startPlay(true); } }},SPEEDS[k].label)));
+    ex.append(sp);
+    if(mic.on) ex.append(h("label",{class:"toggle"},h("input",{type:"checkbox",id:"tuneToggle",checked:view.tune,onchange:(e)=>{ view.tune=e.target.checked; try{localStorage.setItem(KEY+".tune",view.tune?"1":"0");}catch(_){} }}),"Play the tune too"));
+    else ex.append(h("span",{class:"note-text"},"Each note sounds as it reaches the line."));
+    main.append(h("div",{class:"stepbar"},playButton()));
+  } else {
+    ex.append(h("span",{class:"note-text"},"Watch the notes and listen to how the song goes, then try it yourself."));
+    main.append(h("div",{class:"stepbar"},playButton()));
+  }
+}
+function playButton(){
+  return h("button",{class:"btn primary big grow",id:"playBtn",onclick:()=>{ view.playing?stopPlay():startPlay(view.mode==="along"); },html:playLabel()});
+}
+function playLabel(){ return view.playing?ICON.stop+"<span>Stop</span>":ICON.play+"<span>"+(view.mode==="along"?"Start":"Play the song")+"</span>"; }
+function setPlayBtn(){ const b=$("#playBtn"); if(b) b.innerHTML=playLabel(); }
+
+/* ---- the Woodland Band (SVG) ---- */
+function narrow(){ return window.innerWidth<620; }
+function buildBand(host){
+  const nar=narrow(), W=nar?520:800, X=nar?[80,215,340,460]:[150,340,530,690];
+  const spot=X.map(x=>'<ellipse cx="'+x+'" cy="161" rx="'+(nar?62:86)+'" ry="9" fill="var(--accent)" opacity=".12"/>').join("");
+  host.innerHTML='<svg viewBox="0 0 '+W+' 170" preserveAspectRatio="xMidYMax meet" role="img" aria-label="An animal band: a bear on drums, a cat on bass guitar, a frog on keyboard and a bird singing">'+
+  '<rect x="0" y="160" width="'+W+'" height="10" fill="var(--line)"/>'+spot+
+  '<g transform="translate('+X[0]+',0)" class="tap" data-who="bear"><g class="idle">'+
+    '<line x1="54" y1="76" x2="54" y2="160" stroke="var(--dark)" stroke-width="3"/>'+
+    '<ellipse id="cym" class="mv" cx="54" cy="74" rx="20" ry="4.5" fill="var(--brass)"/>'+
+    '<ellipse cx="0" cy="110" rx="30" ry="30" fill="var(--bear)"/><ellipse cx="0" cy="114" rx="17" ry="19" fill="var(--bear-2)"/>'+
+    '<g id="bearHead" class="mv">'+
+      '<circle cx="-17" cy="40" r="9" fill="var(--bear)"/><circle cx="17" cy="40" r="9" fill="var(--bear)"/>'+
+      '<circle cx="-17" cy="40" r="4.5" fill="var(--bear-2)"/><circle cx="17" cy="40" r="4.5" fill="var(--bear-2)"/>'+
+      '<circle cx="0" cy="60" r="24" fill="var(--bear)"/><ellipse cx="0" cy="68" rx="11" ry="8" fill="var(--bear-2)"/>'+
+      '<ellipse cx="0" cy="64" rx="4" ry="3" fill="var(--dark)"/><circle cx="-9" cy="54" r="3" fill="var(--dark)"/><circle cx="9" cy="54" r="3" fill="var(--dark)"/>'+
+      '<path d="M-4 71 Q0 75 4 71" stroke="var(--dark)" stroke-width="2" fill="none" stroke-linecap="round"/></g>'+
+    '<g id="armL" class="armL"><path d="M-20 92 L-40 112" stroke="var(--bear)" stroke-width="10" stroke-linecap="round"/><line x1="-40" y1="112" x2="-60" y2="104" stroke="var(--stick)" stroke-width="4" stroke-linecap="round"/></g>'+
+    '<g id="armR" class="armR"><path d="M20 92 L40 96" stroke="var(--bear)" stroke-width="10" stroke-linecap="round"/><line x1="40" y1="96" x2="56" y2="78" stroke="var(--stick)" stroke-width="4" stroke-linecap="round"/></g>'+
+    '<rect x="-70" y="112" width="34" height="14" rx="3" fill="var(--white)" stroke="var(--dark)" stroke-width="2.5"/>'+
+    '<line x1="-53" y1="126" x2="-53" y2="160" stroke="var(--dark)" stroke-width="3"/>'+
+    '<circle id="kick" class="mv" cx="0" cy="136" r="25" fill="var(--accent)" stroke="var(--dark)" stroke-width="3"/>'+
+    '<circle cx="0" cy="136" r="15" fill="none" stroke="var(--white)" stroke-width="2" opacity=".6"/>'+
+  '</g></g>'+
+  '<g transform="translate('+X[1]+',0)" class="tap" data-who="cat"><g class="idle d2"><g id="cat" class="mv">'+
+    '<path d="M18 146 C46 146 46 104 34 96" stroke="var(--cat)" stroke-width="7" fill="none" stroke-linecap="round"/>'+
+    '<ellipse cx="0" cy="124" rx="24" ry="32" fill="var(--cat)"/><ellipse cx="0" cy="130" rx="13" ry="19" fill="var(--cat-2)"/>'+
+    '<polygon points="-21,56 -17,30 -3,46" fill="var(--cat)"/><polygon points="21,56 17,30 3,46" fill="var(--cat)"/>'+
+    '<polygon points="-16,48 -15,36 -8,45" fill="var(--pink)"/><polygon points="16,48 15,36 8,45" fill="var(--pink)"/>'+
+    '<circle cx="0" cy="66" r="22" fill="var(--cat)"/>'+
+    '<ellipse cx="-8" cy="63" rx="3" ry="4.5" fill="var(--dark)"/><ellipse cx="8" cy="63" rx="3" ry="4.5" fill="var(--dark)"/>'+
+    '<polygon points="-3,70 3,70 0,73.5" fill="var(--pink)"/><path d="M0 74 Q-4 78 -7 75 M0 74 Q4 78 7 75" stroke="var(--dark)" stroke-width="1.6" fill="none"/>'+
+    '<path d="M-10 71 L-27 67 M-10 74 L-27 76 M10 71 L27 67 M10 74 L27 76" stroke="var(--dark)" stroke-width="1.2" opacity=".7"/>'+
+    '<g transform="rotate(-32 0 124)"><ellipse cx="0" cy="128" rx="19" ry="13" fill="var(--bass)" stroke="var(--dark)" stroke-width="2"/>'+
+      '<rect x="12" y="124.5" width="64" height="6" fill="var(--stick)" stroke="var(--dark)" stroke-width="1.2"/><rect x="74" y="121" width="13" height="13" rx="2" fill="var(--dark)"/>'+
+      '<line x1="-8" y1="127.5" x2="76" y2="127.5" stroke="var(--white)" stroke-width=".8"/></g>'+
+    '<circle cx="-4" cy="126" r="6" fill="var(--cat-2)" stroke="var(--cat)" stroke-width="2"/>'+
+  '</g></g></g>'+
+  '<g transform="translate('+X[2]+',0)" class="tap" data-who="frog"><g class="idle d3">'+
+    '<line x1="-40" y1="122" x2="-46" y2="160" stroke="var(--dark)" stroke-width="3"/><line x1="40" y1="122" x2="46" y2="160" stroke="var(--dark)" stroke-width="3"/>'+
+    '<ellipse cx="0" cy="106" rx="30" ry="24" fill="var(--frog)"/><ellipse cx="0" cy="112" rx="18" ry="14" fill="var(--frog-2)"/>'+
+    '<g id="frogHead" class="mv">'+
+      '<ellipse cx="0" cy="72" rx="32" ry="20" fill="var(--frog)"/>'+
+      '<circle cx="-16" cy="54" r="11" fill="var(--frog)"/><circle cx="16" cy="54" r="11" fill="var(--frog)"/>'+
+      '<circle cx="-16" cy="54" r="7" fill="var(--white)"/><circle cx="16" cy="54" r="7" fill="var(--white)"/>'+
+      '<circle cx="-15" cy="55" r="3.5" fill="var(--dark)"/><circle cx="17" cy="55" r="3.5" fill="var(--dark)"/>'+
+      '<path d="M-14 78 Q0 88 14 78" stroke="var(--dark)" stroke-width="2.5" fill="none" stroke-linecap="round"/>'+
+      '<circle cx="-23" cy="78" r="4" fill="var(--pink)" opacity=".7"/><circle cx="23" cy="78" r="4" fill="var(--pink)" opacity=".7"/></g>'+
+    '<rect x="-52" y="110" width="104" height="16" rx="3" fill="var(--white)" stroke="var(--dark)" stroke-width="2.5"/>'+
+    [-40,-28,-10,2,20,32].map(x=>'<rect x="'+x+'" y="110" width="6" height="9" fill="var(--dark)"/>').join("")+
+    '<circle id="handL" class="hand" cx="-22" cy="108" r="7" fill="var(--frog)" stroke="var(--dark)" stroke-width="1.5"/>'+
+    '<circle id="handR" class="hand" cx="22" cy="108" r="7" fill="var(--frog)" stroke="var(--dark)" stroke-width="1.5"/>'+
+  '</g></g>'+
+  '<g transform="translate('+X[3]+',0)" class="tap" data-who="bird" id="birdG"><g class="idle d4">'+
+    '<line x1="-36" y1="98" x2="-36" y2="160" stroke="var(--dark)" stroke-width="3"/>'+
+    '<rect x="-41" y="80" width="10" height="18" rx="5" fill="var(--muted)" stroke="var(--dark)" stroke-width="2"/>'+
+    '<line x1="-6" y1="138" x2="-6" y2="158" stroke="var(--beak)" stroke-width="3"/><line x1="6" y1="138" x2="6" y2="158" stroke="var(--beak)" stroke-width="3"/>'+
+    '<g id="bird" class="mv">'+
+      '<ellipse cx="0" cy="114" rx="24" ry="28" fill="var(--bird)"/><ellipse cx="-4" cy="120" rx="14" ry="18" fill="var(--bird-2)"/>'+
+      '<ellipse cx="14" cy="112" rx="9" ry="17" fill="var(--bird)" stroke="var(--dark)" stroke-width="1.2" opacity=".9"/>'+
+      '<path d="M-2 60 Q2 44 10 50 Q6 56 4 62 Z" fill="var(--bird)"/>'+
+      '<circle cx="0" cy="78" r="20" fill="var(--bird)"/>'+
+      '<circle cx="-7" cy="74" r="3.5" fill="var(--dark)"/><circle cx="-8" cy="73" r="1.2" fill="var(--white)"/>'+
+      '<polygon points="-17,80 -31,84 -17,88" fill="var(--beak)"/>'+
+      '<polygon id="beakOpen" class="beak-open" points="-17,77 -33,72 -21,84 -33,95 -17,90" fill="var(--beak)"/>'+
+      '<circle cx="-12" cy="88" r="3" fill="var(--pink)" opacity=".7"/>'+
+    '</g></g></g>'+
+  '</svg>';
+  host.querySelectorAll(".tap").forEach(g=>g.addEventListener("click",()=>tapAnimal(g.dataset.who)));
+}
+function anim(id,cls){ const el=document.getElementById(id); if(!el) return; el.classList.remove(cls); void el.getBoundingClientRect(); el.classList.add(cls); }
+function bandBeat(b){
+  const bb=((b-(view.song.pickup||0))%4+4)%4;
+  anim(b%2?"armR":"armL",b%2?"hitR":"hitL");
+  anim("bearHead","bop");
+  if(b>=0){
+    if(bb===0||bb===2) anim("kick","bop"); else anim("cym","bop");
+    anim("cat",b%2?"swayR":"swayL");
+    anim(b%2?"handR":"handL","press"); if(bb===0) anim("frogHead","bop");
+  }
+}
+function birdSing(){
+  anim("beakOpen","sing"); anim("bird","bop");
+  const g=document.getElementById("birdG"); if(!g||matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const t=document.createElementNS("http://www.w3.org/2000/svg","text");
+  t.setAttribute("x",-40+Math.random()*10); t.setAttribute("y",66); t.setAttribute("class","fnote"); t.textContent=Math.random()<.5?"♪":"♫";
+  g.appendChild(t); setTimeout(()=>t.remove(),1400);
+}
+function bandCheer(){ ["bearHead","cat","frogHead","bird"].forEach(id=>anim(id,"jump")); }
+function tapAnimal(who){
+  const c=audio(); if(!c) return; const t=c.currentTime+0.01;
+  mic.ignoreUntil=t+1.2;
+  const root=((view.song?view.song.kp+view.song.shift:7)%12+12)%12;
+  if(who==="bear"){ kickAt(t); snareAt(t+0.18); hatAt(t+0.36,0.15); anim("armL","hitL"); setTimeout(()=>anim("armR","hitR"),180); anim("kick","bop"); }
+  if(who==="cat"){ bassAt(40+((root-4+12)%12),t,0.5); bassAt(47+((root-4+12)%12),t+0.25,0.5); anim("cat","swayL"); }
+  if(who==="frog"){ keysAt(keyNotes([root,(root+4)%12,(root+7)%12]),t,0.9); anim("handL","press"); anim("handR","press"); anim("frogHead","bop"); }
+  if(who==="bird"){ pluck(tuning[2]+3,t,.7); pluck(tuning[2]+7,t+0.15,.7); birdSing(); }
+}
+
+/* ---- text under/over the board ---- */
+function update(){
+  const song=view.song; if(!song) return;
+  const n=song.list[view.idx];
+  $("#lyric").textContent=n.lyric||nm(n.m);
+  $("#whereBig").innerHTML='<span style="color:var(--s'+n.s+')">'+sLabel(n.s)+'</span> · '+(n.f===0?"open":"fret "+n.f);
+  $("#whereSmall").textContent=(n.f===0?"No finger, just pluck":"Press behind fret "+n.f)+" · note "+(view.idx+1)+" of "+song.list.length;
+  const pb=$("#prevBtn"); if(pb) pb.disabled=view.idx===0;
+}
+function setFeedback(text,cls){
+  const el=$("#feedback"); if(!el) return;
+  if(text==null){
+    const n=view.song.list[view.idx];
+    if(view.mode==="practice") text=mic.on?"Waiting for you to play "+sLabel(n.s)+", "+(n.f===0?"open":"fret "+n.f)+"…":"Play the note, then tap “I played it!”";
+    else if(view.mode==="along") text=view.playing?"":(mic.on?"Press Start. I'll listen for each note.":"Press Start and play along with the band.");
+    else text=view.playing?"":"Press Play the song to hear it.";
+    cls="";
+  }
+  el.textContent=text; el.className="feedback"+(cls?" "+cls:"");
+}
+function hearCurrent(){ const n=view.song.list[view.idx]; pluck(n.m); flash(n.s); }
+function go(d,award){
+  const song=view.song; if(!song||view.playing||$(".overlay")) return;
+  if(d>0&&award) noteDone(view.idx,"step");
+  if(d>0&&view.idx===song.list.length-1){ finish("step"); return; }
+  view.idx=Math.min(song.list.length-1,Math.max(0,view.idx+d));
+  update(); setFeedback();
+  if(d>0){ flash(song.list[view.idx].s); birdSing(); }
+}
+// Points for each note (once per note per run).
+function noteDone(i,kind,label){
+  if(i<view.maxIdx) return; view.maxIdx=i+1;
+  const pts=NOTE_PTS[kind]; addPoints(pts);
+  const n=view.song.list[i]; popups.push({lane:n.s,life:1,text:(label?label+" ":"")+"+"+pts});
+}
+
+/* ---- what the microphone heard ---- */
+const matches=(m,t)=>m===t||m===t+12||m===t-12;
+function heard(ev){
+  if(!view.song||$(".overlay")) return;
+  const song=view.song;
+  if(view.mode==="practice"&&!view.playing){
+    if(view.advancing) return;
+    const n=song.list[view.idx];
+    if(matches(ev.midi,n.m)){
+      n.hit=true; flash(n.s); birdSing();
+      setFeedback(["Yes!","Brilliant!","Spot on!","Great!"][Math.floor(Math.random()*4)],"good");
+      noteDone(view.idx,"step","Yes!");
+      view.advancing=true;
+      view.waitT=setTimeout(()=>{
+        view.advancing=false;
+        if(view.idx===song.list.length-1){ finish("step"); return; }
+        view.idx++; update(); setTimeout(()=>{ if(view.mode==="practice") setFeedback(); },700);
+      },160);
+    } else {
+      const diff=ev.midi-n.m;
+      const tip=diff===-1?"Just a little low: try one fret further up.":diff===1?"Just a little high: try one fret lower.":
+        "I heard "+nm(ev.midi)+". Try "+sLabel(n.s)+", "+(n.f===0?"open":"fret "+n.f)+".";
+      setFeedback(tip,"warn");
+    }
+  } else if(view.mode==="along"&&view.playing&&view.along){
+    const b=(ev.time-view.startAt)/view.beatSec, early=0.2/view.beatSec;
+    const k=song.list.findIndex(n=>!n.hit&&!n.miss&&b>=n.start-early&&b<=n.start+Math.max(0.4/view.beatSec,n.beats*0.85)&&matches(ev.midi,n.m));
+    if(k>=0){
+      const n=song.list[k]; n.hit=true; flash(n.s); birdSing();
+      const pts=NOTE_PTS[view.speed]; addPoints(pts);
+      popups.push({lane:n.s,life:1,text:"Great! +"+pts});
+    }
+  }
+}
+
+/* ======================= The fretboard (canvas) ======================= */
+let cv=null, cx2=null, colors={}, flashes=[0,0,0], lastT=0, ro=null, popups=[];
+function readColors(){
+  const cs=getComputedStyle(document.documentElement), g=k=>cs.getPropertyValue(k).trim();
+  colors={s:[g("--s0"),g("--s1"),g("--s2")],on:g("--on-string"),wood:g("--wood"),wood2:g("--wood-2"),fret:g("--fret"),inlay:g("--inlay"),hit:g("--hit"),gold:g("--gold"),good:g("--good")};
+}
+function flash(s){ flashes[s]=1; }
+function startBoard(){
+  cv=$("#board"); cx2=cv.getContext("2d"); readColors(); sizeBoard();
+  if(window.ResizeObserver){ ro=new ResizeObserver(sizeBoard); ro.observe(cv); }
+  cv.addEventListener("click",()=>{ audio(); if(view.mode==="practice"&&!mic.on) go(1,true); });
+  lastT=performance.now(); view.beat=view.song.list[0].start-3;
+  const loop=(t)=>{ view.raf=requestAnimationFrame(loop); frame(t); };
+  view.raf=requestAnimationFrame(loop);
+}
+function closeBoard(){ if(view.raf) cancelAnimationFrame(view.raf); view.raf=0; if(ro){ ro.disconnect(); ro=null; } cv=null; clearTimeout(view.waitT); view.advancing=false; }
+function sizeBoard(){
+  if(!cv) return;
+  const r=cv.getBoundingClientRect(), dpr=Math.min(2,window.devicePixelRatio||1);
+  cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr);
+  cx2.setTransform(dpr,0,0,dpr,0,0); cv._w=r.width; cv._h=r.height;
+}
+const darkMQ=matchMedia("(prefers-color-scheme: dark)");
+if(darkMQ.addEventListener) darkMQ.addEventListener("change",readColors);
+new MutationObserver(readColors).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+window.addEventListener("resize",()=>{ const b=$("#band"); if(b&&b._nar!==narrow()){ b._nar=narrow(); buildBand(b); } });
+
+function frame(t){
+  const song=view.song; if(!song||!cv) return;
+  const dt=Math.min(0.1,(t-lastT)/1000); lastT=t;
+  if(view.playing&&ctx){
+    view.beat=(ctx.currentTime-view.startAt)/view.beatSec;
+    const wb=Math.floor(view.beat+0.02);
+    if(wb!==view.lastBeat&&view.beat<song.total){ view.lastBeat=wb; if(view.band&&wb>=-4) bandBeat(wb); }
+    let i=view.idx;
+    while(i+1<song.list.length&&song.list[i+1].start<=view.beat+0.001) i++;
+    const listening=view.along&&mic.on;
+    const reached=k=>{
+      const n=song.list[k];
+      if(!listening){ flash(n.s); birdSing(); if(view.along) for(let j=view.maxIdx;j<=k;j++) noteDone(j,view.speed); }
+    };
+    if(view.beat>=0&&(i!==view.idx||!view.first)){ view.idx=i; view.first=true; update(); reached(i); }
+    if(listening){   // notes whose time has passed without being heard
+      song.list.forEach(n=>{ if(!n.hit&&!n.miss&&view.beat>n.start+Math.max(0.4/view.beatSec,n.beats*0.85)) n.miss=true; });
+    }
+  } else {
+    const target=song.list[view.idx].start;
+    view.beat+=(target-view.beat)*Math.min(1,dt*9);
+  }
+  draw(dt,t);
+}
+
+function rr(c,x,y,w,h,r){ r=Math.min(r,w/2,h/2); c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function draw(dt,now){
+  const c=cx2, W=cv._w, H=cv._h, song=view.song; if(!W||!H) return;
+  const lyrH=38, top=8, headW=Math.max(44,Math.min(64,W*0.08));
+  const bot=H-lyrH, sp=(bot-top)/3, y=i=>top+sp*(i+0.5);
+  const nowX=headW+Math.max(34,W*0.13);
+  const ppb=Math.max(72,Math.min(170,W/6.2));
+  const bh=Math.min(38,sp*0.62);
+  const cur=view.beat, xb=b=>nowX+(b-cur)*ppb;
+
+  // fretboard wood + headstock
+  const g=c.createLinearGradient(0,top,0,bot);
+  g.addColorStop(0,colors.wood2); g.addColorStop(.5,colors.wood); g.addColorStop(1,colors.wood2);
+  c.fillStyle=colors.wood2; c.fillRect(0,0,W,H);
+  c.fillStyle=g; c.fillRect(headW,top,W-headW,bot-top);
+  c.fillStyle=colors.inlay; c.fillRect(headW-5,top-2,7,bot-top+4);   // nut
+
+  // beat lines slide past like frets
+  c.save(); c.beginPath(); c.rect(headW+2,top,W-headW,bot-top); c.clip();
+  for(let b=Math.floor(cur-(nowX-headW)/ppb)-1;b<=Math.ceil(cur+(W-nowX)/ppb)+1;b++){
+    if(b<0||b>song.total) continue;
+    c.fillStyle=colors.fret; c.globalAlpha=0.32; c.fillRect(xb(b)-1.5,top,3,bot-top);
+  }
+  c.globalAlpha=0.6; c.fillStyle=colors.inlay;
+  song.list.forEach(n=>{ if(n.barAfter){ const x=xb(n.start+n.beats); if(x>headW&&x<W) c.fillRect(x-3,top,6,bot-top); } });
+  c.globalAlpha=1;
+
+  // strings
+  const widths=[5,4,3];
+  for(let i=0;i<3;i++){
+    flashes[i]=Math.max(0,flashes[i]-dt*2.2);
+    const wob=flashes[i]>0?Math.sin(now/22)*2.4*flashes[i]:0;
+    c.strokeStyle=colors.s[i]; c.lineWidth=widths[i]; c.globalAlpha=0.9;
+    c.beginPath(); c.moveTo(headW,y(i)); c.quadraticCurveTo((headW+W)/2,y(i)+wob,W,y(i)); c.stroke();
+  }
+  c.globalAlpha=1;
+
+  // play line + targets (notes are drawn over it, so the fret number stays readable)
+  c.fillStyle=colors.hit; c.globalAlpha=0.95; rr(c,nowX-2.5,top,5,bot-top,2.5); c.fill(); c.globalAlpha=1;
+  for(let i=0;i<3;i++){
+    const f=flashes[i];
+    if(f>0){ c.fillStyle=colors.s[i]; c.globalAlpha=0.4*f; c.beginPath(); c.arc(nowX,y(i),bh*0.6+16*f,0,Math.PI*2); c.fill(); c.globalAlpha=1; }
+    c.strokeStyle=colors.s[i]; c.lineWidth=3; c.beginPath(); c.arc(nowX,y(i),bh*0.6,0,Math.PI*2); c.stroke();
+  }
+
+  // note bars: each bar is as long as the note
+  const waiting=view.mode==="practice"&&!view.playing;
+  c.textAlign="center"; c.textBaseline="middle";
+  for(let k=0;k<song.list.length;k++){
+    const n=song.list[k];
+    const x0=xb(n.start)+2, x1=xb(n.start+n.beats)-3, w=Math.max(bh,x1-x0);
+    if(x0+w<headW-10||x0>W+10) continue;
+    const isCur=k===view.idx, yy=y(n.s);
+    let a=1;
+    if(n.miss) a=0.25; else if(n.start+n.beats<cur-0.02&&!n.hit) a=0.35; else if(n.hit&&!isCur) a=0.55;
+    c.globalAlpha=a;
+    if(isCur){
+      const pulse=waiting?(0.5+0.5*Math.sin(now/220)):1;
+      c.fillStyle=colors.hit; c.globalAlpha=a*(0.6+0.4*pulse);
+      rr(c,x0-4,yy-bh/2-4,w+8,bh+8,(bh+8)/2); c.fill(); c.globalAlpha=a;
+    }
+    if(n.hit){ c.fillStyle=colors.gold; rr(c,x0-3,yy-bh/2-3,w+6,bh+6,(bh+6)/2); c.fill(); }
+    c.fillStyle=colors.s[n.s]; rr(c,x0,yy-bh/2,w,bh,bh/2); c.fill();
+    c.fillStyle=colors.on; c.font="700 "+Math.round(bh*0.66)+"px Fredoka, sans-serif";
+    c.fillText(String(n.f),x0+bh/2,yy+1);
+  }
+  c.restore(); c.globalAlpha=1;
+
+  // headstock with string names (drawn over the clip edge)
+  c.fillStyle=colors.wood2; c.fillRect(0,0,headW-5,H);
+  for(let i=0;i<3;i++){
+    c.fillStyle=colors.s[i]; rr(c,8,y(i)-13,headW-20,26,13); c.fill();
+    c.fillStyle=colors.on; c.font="700 15px Fredoka, sans-serif"; c.textAlign="center"; c.fillText(sName(i),8+(headW-20)/2,y(i)+1);
+  }
+
+  // words, under each note
+  c.textBaseline="middle"; c.textAlign="left";
+  c.save(); c.beginPath(); c.rect(headW,bot,W-headW,lyrH); c.clip();
+  for(let k=0;k<song.list.length;k++){
+    const n=song.list[k], x0=xb(n.start)+2; if(x0>W||x0<headW-120) continue;
+    const next=song.list[k+1], room=(next?xb(next.start):W)-x0-4;
+    const isCur=k===view.idx;
+    c.globalAlpha=isCur?1:(n.start<cur-0.02?0.35:0.75);
+    c.fillStyle=isCur?colors.hit:colors.inlay;
+    c.font=(isCur?"700 19px ":"600 16px ")+"Fredoka, sans-serif";
+    c.fillText(n.lyric||nm(n.m),x0,bot+lyrH/2,Math.max(24,room));
+  }
+  c.restore(); c.globalAlpha=1;
+
+  // points popping up
+  popups=popups.filter(p=>(p.life-=dt*1.0)>0);
+  c.textAlign="left";
+  popups.forEach(p=>{
+    c.globalAlpha=Math.min(1,p.life*1.6); c.fillStyle=colors.gold;
+    c.font="700 20px Fredoka, sans-serif";
+    c.fillText(p.text,nowX+12,y(p.lane)-bh/2-8-(1-p.life)*40);
+  });
+  c.globalAlpha=1;
+}
+
+/* ---- timed play (play along / listen first) ---- */
+function startPlay(along){
+  const c=audio(); if(!c) return;
+  const song=view.song, bpm=along?SPEEDS[view.speed].bpm:(song.id==="mountain"?100:84), beat=60/bpm;
+  resetRun();
+  view.playing=true; view.along=along; view.first=false; view.lastBeat=-99; update(); setPlayBtn(); setFeedback("");
+  const countBeats=along?4:2;
+  const t0=c.currentTime+0.15, startAt=t0+countBeats*beat;
+  view.startAt=startAt; view.beatSec=beat;
+  for(let i=0;i<countBeats;i++){
+    tick(t0+i*beat,i===0);
+    if(along) later((t0+i*beat-c.currentTime)*1000,()=>showCount(String(countBeats-i)));
+  }
+  later((startAt-c.currentTime)*1000,()=>showCount(""));
+  if(view.band) scheduleBand(song,startAt,beat);
+  else if(along){ for(let b=0;b<Math.ceil(song.total);b++) tick(startAt+b*beat,false); }
+  // The tune itself: always in Listen first, and in Play along unless the microphone is listening
+  // (then only if she ticks "Play the tune too", because the microphone would hear it).
+  const playTune=!along||!mic.on||view.tune;
+  if(playTune) song.list.forEach(n=>pluck(n.m,startAt+n.start*beat,along?0.75:0.9));
+  const end=startAt+song.total*beat;
+  later((end-c.currentTime)*1000+700,()=>{
+    view.playing=false; setPlayBtn();
+    if(along) finish(view.speed==="fast"?"fast":"along");
+    else { view.idx=0; update(); setFeedback(); }
+  });
+}
+function later(ms,fn){ view.timers.push(setTimeout(fn,Math.max(0,ms))); }
+function stopPlay(){
+  view.timers.forEach(clearTimeout); view.timers=[]; hush(); showCount("");
+  if(view.playing){ view.playing=false; setPlayBtn(); if(view.song) setFeedback(); }
+}
+let countEl=null;
+function showCount(txt){
+  if(!txt){ if(countEl){ countEl.remove(); countEl=null; } return; }
+  if(!countEl){ countEl=h("div",{class:"countin","aria-live":"polite"},h("span")); document.body.append(countEl); }
+  countEl.firstChild.textContent=txt;
+}
+
+/* ---- finishing a song ---- */
+function finish(kind){
+  const song=view.song, p=progress[song.id]||(progress[song.id]={});
+  const before=starsFor(song.id), rankBefore=rankOf(totalPoints()).name;
+  const listened=kind!=="step"&&mic.on;
+  const hits=song.list.filter(n=>n.hit).length, total=song.list.length;
+  const earned=!listened||hits>=Math.ceil(total*HIT_RATE);
+  if(kind==="step") p.step=true;
+  if(earned&&kind==="along") p.along=true;
+  if(earned&&kind==="fast"){ p.along=true; p.fast=true; }
+  saveProgress();
+  const after=starsFor(song.id), newStars=after-before;
+  const bonus=(kind==="step"?50:kind==="fast"?250:view.speed==="medium"?150:100)*(earned?1:0.5)+newStars*100;
+  addPoints(Math.round(bonus));
+  const rankNow=rankOf(totalPoints()).name;
+  $("#songStars").replaceChildren(starRow(after));
+  bandCheer();
+  const msg=newStars>0?"You earned a new star!":after===3?"All three stars. You're a rock star!":earned?"Brilliant playing!":
+    "Hit "+Math.ceil(total*HIT_RATE)+" notes to earn the star. Try a slower speed or Practice first.";
+  const next=!earned?"":!p.step?"Next star: finish it in Practice.":!p.along?"Next star: try Play along.":!p.fast?"Last star: Play along at Fast speed.":"";
+  const ov=h("div",{class:"overlay",onclick:(e)=>{ if(e.target===ov) ov.remove(); }});
+  const dlg=h("div",{class:"dialog",role:"dialog","aria-modal":"true"},
+    h("h3",null,earned?"You played it!":"Good try!"),
+    starRow(after),
+    h("div",{class:"stats",style:"margin:0;justify-content:center;width:100%"},
+      listened?h("div",null,h("div",{class:"lbl"},"Notes hit"),h("div",{class:"num"},hits+" / "+total)):null,
+      h("div",null,h("div",{class:"lbl"},"This time"),h("div",{class:"num"},"+"+view.runPts+" pts")),
+      h("div",null,h("div",{class:"lbl"},"Total"),h("div",{class:"num"},totalPoints().toLocaleString()))),
+    rankNow!==rankBefore?h("p",{style:"color:var(--ink);font-weight:800"},"New rank: "+rankNow+"!"):null,
+    h("p",null,msg+(next?" "+next:"")),
+    h("div",{class:"row"},
+      h("button",{class:"btn",onclick:()=>{ ov.remove(); resetRun(); view.runPts=0; $("#pts").textContent="0 pts"; update(); setFeedback(); },html:ICON.again+"Again"}),
+      h("button",{class:"btn primary",onclick:()=>{ ov.remove(); location.hash=""; }},"More songs")));
+  ov.append(dlg); document.body.append(ov);
+  dlg.querySelector(".btn.primary").focus();
+  if(earned&&!matchMedia("(prefers-reduced-motion: reduce)").matches){
+    const cols=["var(--s0)","var(--s1)","var(--s2)","var(--accent)","var(--gold)"];
+    for(let i=0;i<36;i++) dlg.append(h("i",{class:"confetti",style:"left:"+(Math.random()*100)+"%;background:"+cols[i%5]+";animation-delay:"+(Math.random()*.5).toFixed(2)+"s"}));
+  }
+  const c=audio(); if(c){ const t=c.currentTime+.05; mic.ignoreUntil=t+1.5; [tuning[0],tuning[1],tuning[2],tuning[2]+3].forEach((m,i)=>pluck(m,t+i*.12,.6)); }
+}
+
+/* ---- keyboard ---- */
+document.addEventListener("keydown",(e)=>{
+  if(e.key==="Escape"){ const ov=$(".overlay"); if(ov){ ov.remove(); if(!view.song) renderHome(); return; } }
+  if(!view.song||$(".overlay")) return;
+  if(e.target&&(e.target.tagName==="SELECT"||e.target.tagName==="INPUT")) return;
+  if(view.mode==="practice"){
+    if(e.key===" "||e.key==="ArrowRight"){ e.preventDefault(); go(1,!mic.on); }
+    else if(e.key==="ArrowLeft"){ e.preventDefault(); go(-1); }
+    else if(e.key==="h"){ hearCurrent(); }
+  } else if(e.key===" "){ e.preventDefault(); view.playing?stopPlay():startPlay(view.mode==="along"); }
+});
+
+route();
+})();
+</script>
+
+</body>
+</html>
