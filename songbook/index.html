@@ -454,8 +454,9 @@ function pluckBuffer(fr){   // Karplus–Strong plucked string
   const k=fr.toFixed(2); if(bufCache[k]) return bufCache[k];
   const sr=ctx.sampleRate, len=Math.floor(sr*2.2), N=Math.round(sr/fr);
   const buf=ctx.createBuffer(1,len,sr), d=buf.getChannelData(0);
-  for(let i=0;i<N;i++) d[i]=(Math.random()*2-1)*0.6;
-  for(let i=N;i<len;i++) d[i]=0.4985*(d[i-N]+d[i-N-1]);
+  for(let i=0;i<=N;i++) d[i]=(Math.random()*2-1)*0.6;
+  // start at N+1 so d[i-N-1] never reads before the buffer (that gave NaN and silenced all audio)
+  for(let i=N+1;i<len;i++) d[i]=0.4985*(d[i-N]+d[i-N-1]);
   for(let i=0;i<64;i++) d[i]*=i/64;
   return bufCache[k]=buf;
 }
@@ -480,7 +481,7 @@ function hush(){ live.forEach(n=>{ try{n.stop();}catch(e){} }); live=[]; }
 
 /* ---- the animal band's instruments ---- */
 let bandBus=null, noiseBuf=null;
-function bus(){ if(!bandBus){ bandBus=ctx.createGain(); bandBus.connect(ctx.destination); } bandBus.gain.value=mic.on?0.3:0.45; return bandBus; }
+function bus(){ if(!bandBus){ bandBus=ctx.createGain(); bandBus.gain.value=0.5; bandBus.connect(ctx.destination); } return bandBus; }
 function noise(){
   if(!noiseBuf){ const len=Math.floor(ctx.sampleRate*1.2); noiseBuf=ctx.createBuffer(1,len,ctx.sampleRate); const d=noiseBuf.getChannelData(0); for(let i=0;i<len;i++) d[i]=Math.random()*2-1; }
   return noiseBuf;
@@ -510,7 +511,8 @@ const crashAt=t=>noiseAt(t,4500,"highpass",0.25,1.1);
 const bassAt=(m,t,dur)=>{ toneAt(m,t,dur,"triangle",0.6,900); toneAt(m,t,dur,"sawtooth",0.1,450); };
 const keysAt=(ms,t,dur)=>ms.forEach(m=>toneAt(m,t,dur,"triangle",0.08,2200));
 // While listening, the bass drops an octave so the microphone isn't fooled by it.
-const bassNote=pc=>(mic.on?28:40)+((pc-4+12)%12);
+// E2..D#3: low enough to sit under the guitar's notes, high enough for a phone or tablet speaker
+const bassNote=pc=>40+((pc-4+12)%12);
 const keyNotes=pcs=>pcs.map(pc=>52+((pc-4+12)%12)).sort((a,b)=>a-b);
 
 /* Pick simple chords (I, IV, V, vi / i, iv, V, VI) to fit each 2-beat chunk of the tune. */
@@ -712,7 +714,6 @@ const view={song:null,mode:"along",idx:0,speed:"slow",band:true,tune:false,playi
 const SPEEDS={slow:{bpm:52,label:"Slow"},medium:{bpm:72,label:"Medium"},fast:{bpm:96,label:"Fast"}};
 try{
   const g=localStorage.getItem(KEY+".band"); if(g!=null) view.band=g==="1";
-  const tn=localStorage.getItem(KEY+".tune"); if(tn!=null) view.tune=tn==="1";
   const sp=localStorage.getItem(KEY+".speed"); if(SPEEDS[sp]) view.speed=sp;
 }catch(e){}
 
@@ -878,8 +879,7 @@ function renderMode(){
         e.currentTarget.parentNode.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed","false"));
         e.currentTarget.setAttribute("aria-pressed","true"); if(view.playing){ stopPlay(); startPlay(true); } }},SPEEDS[k].label)));
     ex.append(sp);
-    if(mic.on) ex.append(h("label",{class:"toggle"},h("input",{type:"checkbox",id:"tuneToggle",checked:view.tune,onchange:(e)=>{ view.tune=e.target.checked; try{localStorage.setItem(KEY+".tune",view.tune?"1":"0");}catch(_){} }}),"Play the tune too"));
-    else ex.append(h("span",{class:"note-text"},"Each note sounds as it reaches the line."));
+    ex.append(h("span",{class:"note-text"},mic.on?"Each note sounds (a little higher) as it reaches the line. I'll listen for yours.":"Each note sounds as it reaches the line."));
     main.append(h("div",{class:"stepbar"},playButton()));
   } else {
     ex.append(h("span",{class:"note-text"},"Watch the notes and listen to how the song goes, then try it yourself."));
@@ -1949,7 +1949,7 @@ function heard(ev){
     }
   } else if(view.mode==="along"&&view.playing&&view.along){
     const b=(ev.time-view.startAt)/view.beatSec, early=0.2/view.beatSec;
-    const k=song.list.findIndex(n=>!n.hit&&!n.miss&&b>=n.start-early&&b<=n.start+Math.max(0.4/view.beatSec,n.beats*0.85)&&matches(ev.midi,n.m));
+    const k=song.list.findIndex(n=>!n.hit&&!n.miss&&b>=n.start-early&&b<=n.start+Math.max(0.4/view.beatSec,n.beats*0.85)&&ev.midi===n.m);   // exact note only: the guide tune plays an octave up
     if(k>=0){
       const n=song.list[k]; n.hit=true; flash(n.s); birdSing();
       const pts=NOTE_PTS[view.speed]; addPoints(pts);
@@ -2126,10 +2126,10 @@ function startPlay(along){
   later((startAt-c.currentTime)*1000,()=>showCount(""));
   if(view.band) scheduleBand(song,startAt,beat);
   else if(along){ for(let b=0;b<Math.ceil(song.total);b++) tick(startAt+b*beat,false); }
-  // The tune itself: always in Listen first, and in Play along unless the microphone is listening
-  // (then only if she ticks "Play the tune too", because the microphone would hear it).
-  const playTune=!along||!mic.on||view.tune;
-  if(playTune) song.list.forEach(n=>pluck(n.m,startAt+n.start*beat,along?0.75:0.9));
+  // The tune always plays as each note reaches the line. While the microphone is listening it plays
+  // an octave higher, and only her exact note counts as a hit, so the app never scores its own sound.
+  const guideUp=along&&mic.on?12:0;
+  song.list.forEach(n=>pluck(n.m+guideUp,startAt+n.start*beat,along?0.8:0.9));
   const end=startAt+song.total*beat;
   later((end-c.currentTime)*1000+700,()=>{
     view.playing=false; setPlayBtn();
