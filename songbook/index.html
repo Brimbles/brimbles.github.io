@@ -654,7 +654,7 @@ const MIC_MSG={
   off:"Turn on listening so I can hear your guitar and wait for the right notes.",
   asking:"Say yes when your device asks to use the microphone.",
   on:"Listening. Play loud enough that the green bar moves.",
-  denied:"The microphone was blocked. Allow it in your browser's settings for this page, then try again.",
+  denied:"The microphone was blocked. Allow it in the settings for this app or web page, then try again.",
   blocked:"This page can't use the microphone here. Open the songbook from its own web address to use listening."
 };
 function renderMicPanel(host){
@@ -670,6 +670,8 @@ function renderMicPanel(host){
 /* ======================= Wake lock ======================= */
 let wake=null;
 async function keepAwake(on){
+  // inside the Android app the screen is kept on by the app itself
+  try{ if(window.SongbookApp&&window.SongbookApp.keepAwake){ window.SongbookApp.keepAwake(!!on); return; } }catch(e){}
   try{
     if(on&&!wake&&navigator.wakeLock){ wake=await navigator.wakeLock.request("screen"); wake.addEventListener("release",()=>{wake=null;}); }
     if(!on&&wake){ await wake.release(); wake=null; }
