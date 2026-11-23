@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LCARS Home Dashboard - Brimbles</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header>
+    <h1><a href="../index.html">~/brimbles</a></h1>
+    <p class="prompt">LCARS Home Dashboard</p>
+  </header>
+
+  <main>
+    <article class="post">
+      <p class="post-date">2026-11-22</p>
+
+<p>A wall-mounted tablet that runs the house, styled like the LCARS computer screens from Star Trek. It's a custom Home Assistant card, so every button and number is live: lights, heating, the car charger, energy use and where everyone is.</p>
+<p>You can try it below. The demo runs the real dashboard code with a made-up house, so press anything you like.</p>
+<p><span class="demo-frame"><iframe src="../lcars/" title="Interactive LCARS dashboard demo" loading="lazy"></iframe></span><script>(function () { function fit() { document.querySelectorAll('.demo-frame').forEach(function (b) { b.firstChild.style.transform = 'scale(' + b.clientWidth / 1280 + ')'; }); } fit(); addEventListener('resize', fit); addEventListener('load', fit); })();</script></p>
+<p><a href="../lcars/">Open the demo full screen</a></p>
+<h3>Pages</h3>
+<p>The buttons down the left side switch between pages.</p>
+<img src="../assets/images/lcars-dashboard/main.png" alt="The main page: lights, a kitchen timer, the robot vacuum, room temperatures and heating boosts">
+<ul>
+  <li>Main: lights and scenes, a kitchen timer, room temperatures, heating boosts and the robot vacuum</li>
+  <li>Car: charge level, charge limit, defrost, departure times, tyres and locks, and how much home charging has cost since payday</li>
+  <li>Family: a map showing where everyone is, how far from home and whether they're heading back</li>
+  <li>Energy: today's cost (estimated, because the meter data arrives a day or two late), 30 days of electricity and gas, which devices use the most, and the biggest spikes</li>
+  <li>Server: CPU, memory, disks and Docker containers on the home server</li>
+  <li>Terminal: the same controls in a green-screen terminal style</li>
+</ul>
+<img src="../assets/images/lcars-dashboard/car.png" alt="The car page">
+<img src="../assets/images/lcars-dashboard/energy.png" alt="The energy page, with daily costs and the devices using the most">
+<img src="../assets/images/lcars-dashboard/family.png" alt="The family map">
+<img src="../assets/images/lcars-dashboard/server.png" alt="The server page">
+<img src="../assets/images/lcars-dashboard/terminal.png" alt="The terminal version">
+<h3>How It Works</h3>
+<ul>
+  <li>It's one JavaScript file that defines two custom Home Assistant cards, LCARS and terminal, with no build step or framework</li>
+  <li>A small Node script uploads the card and the dashboard layout to Home Assistant over its websocket API, so nothing has to be copied onto the server</li>
+  <li>The layout (which buttons, rooms and devices) lives in one JSON file, separate from the code</li>
+  <li>An old Amazon Fire tablet runs it full screen in Fully Kiosk Browser, and the screen wakes when someone walks past</li>
+  <li>Buttons make LCARS-style beeps, and pressing one reads out what it did</li>
+  <li>The energy page fits a straight line of daily gas use against outdoor temperature, so it can estimate today's cost before the meter readings arrive</li>
+</ul>
+<h3>Try It</h3>
+<p>The demo is here: <a href="../lcars/">LCARS Home Dashboard demo</a></p>
+    </article>
+  </main>
+
+  <footer>
+    <p><a href="../index.html">&lt; back to projects</a></p>
+  </footer>
+</body>
+</html>

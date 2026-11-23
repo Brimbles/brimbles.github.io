@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LCARS Home Dashboard - Demo</title>
+<style>
+  html, body { margin: 0; background: #000; height: 100%; overflow: hidden; }
+  #demo-note { position: fixed; right: 8px; bottom: 6px; z-index: 10; font: 12px/1.3 sans-serif; color: #777;
+    background: rgba(0,0,0,.7); padding: 3px 8px; border-radius: 10px; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="demo-note">Demo with made-up data, nothing here controls a real house</div>
+<script>if (/[?&]shot\b/.test(location.search)) document.getElementById('demo-note').remove();</script>
+<script src="tablet-panels.js"></script>
+<script>
+// Interactive demo of the tablet dashboards. The cards are the real ones from Home
+// Assistant; everything they read comes from the fake "hass" object below, and
+// button presses change that fake state instead of real devices.
+(function () {
+  var HOUR = 3600e3, DAY = 864e5;
+  var now0 = Date.now();
+
+  // ---- deterministic noise, so numbers stay put between page loads ----
+  function rnd(seed) { var t = (seed * 2654435761 + 0x6D2B79F5) >>> 0; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+  function hourIdx(t) { return Math.floor(t / HOUR); }
+
+  // ---- made-up house: hourly weather, appliances, gas -----------------
+  function tempAt(t) {
+    var d = Math.floor(t / DAY), h = new Date(t).getHours();
+    var daily = 5 + 3 * Math.sin(d / 5) + (rnd(d * 7) - 0.5) * 3;
+    return daily + 2.5 * Math.sin((h - 9) / 24 * 2 * Math.PI);
+  }
+  var baseProfile = [0.35,0.3,0.3,0.3,0.3,0.4,0.7,0.85,0.7,0.6,0.6,0.6,0.65,0.6,0.6,0.7,0.9,1.3,1.4,1.2,1.0,0.8,0.6,0.45];
+  var gasProfile = [0.2,0.1,0.1,0.1,0.2,0.9,2.2,2.0,1.0,0.6,0.5,0.5,0.5,0.5,0.6,0.8,1.6,2.1,2.0,1.8,1.4,1.0,0.6,0.3];
+  function devAt(name, t) { // kWh in the hour starting at t
+    var i = hourIdx(t), d = new Date(t), h = d.getHours(), wd = d.getDay(), dn = Math.floor(t / DAY);
+    if (name === 'car') { var night = rnd(dn * 13) < 0.45; return night && h >= 1 && h < 5 ? 7.0 : 0; }
+    if (name === 'wash') { var on = rnd(dn * 17) < 0.5; return on && h === 10 ? 1.1 : on && h === 11 ? 0.4 : 0; }
+    if (name === 'dehum') return 0.12 + rnd(i * 3) * 0.08;
+    if (name === 'desk') return wd >= 1 && wd <= 5 && h >= 9 && h < 17 ? 0.12 + rnd(i * 5) * 0.06 : 0.01;
+    return 0;
+  }
+  function elecAt(t) { var h = new Date(t).getHours(), i = hourIdx(t);
+    return baseProfile[h] * (0.8 + rnd(i) * 0.4) + devAt('car', t) + devAt('wash', t) + devAt('dehum', t) + devAt('desk', t); }
+  function gasAt(t) { var h = new Date(t).getHours(), i = hourIdx(t), T = tempAt(t);
+    var day = Math.max(5, 80 - 4.5 * T); return gasProfile[h] / 20.2 * day * (0.85 + rnd(i * 11) * 0.3); }
+
+  var RATE_E = 0.2786, RATE_G = 0.0791;
+  var series = {
+    'demo:elec_kwh': function (t) { return { change: elecAt(t) }; },
+    'demo:elec_cost': function (t) { return { change: elecAt(t) * RATE_E }; },
+    'demo:gas_kwh': function (t) { return { change: gasAt(t) }; },
+    'demo:gas_cost': function (t) { return { change: gasAt(t) * RATE_G }; },
+    'sensor.demo_outdoor': function (t) { return { mean: tempAt(t) }; },
+    'sensor.demo_charger_power': function (t) { return { mean: devAt('car', t) }; },
+    'sensor.washer_energy': function (t) { return { change: devAt('wash', t) }; },
+    'sensor.dehumidifier_power': function (t) { return { mean: devAt('dehum', t) * 1000 }; },
+    'sensor.desk_power': function (t) { return { mean: devAt('desk', t) * 1000 }; },
+  };
+  // Answers recorder/statistics_during_period from the series above.
+  function stats(m) {
+    var hourly = m.period !== 'day', out = {};
+    var start = Date.parse(m.start_time), end = Date.now();
+    m.statistic_ids.forEach(function (id) {
+      var f = series[id]; if (!f) return;
+      var rows = [];
+      if (hourly) {
+        for (var t = Math.ceil(start / HOUR) * HOUR; t + HOUR <= end; t += HOUR) rows.push(Object.assign({ start: t, end: t + HOUR }, f(t)));
+      } else {
+        var d0 = new Date(start); d0.setHours(0, 0, 0, 0);
+        // Like the real meter feed, daily figures stop two days back.
+        for (var day = d0.getTime(); day + DAY <= end - 2 * DAY; day = new Date(new Date(day).getFullYear(), new Date(day).getMonth(), new Date(day).getDate() + 1).getTime()) {
+          var ch = 0, mean = 0, n = 0;
+          for (var h = 0; h < 24; h++) { var v = f(day + h * HOUR); if (v.change != null) ch += v.change; if (v.mean != null) { mean += v.mean; n++; } }
+          rows.push(n ? { start: day, end: day + DAY, mean: mean / n } : { start: day, end: day + DAY, change: ch });
+        }
+      }
+      out[id] = rows;
+    });
+    return out;
+  }
+
+  // ---- states ----------------------------------------------------------
+  var st = function (s, a) { return { state: String(s), attributes: a || {}, last_updated: new Date().toISOString() }; };
+  var iso = function (ms) { return new Date(ms).toISOString(); };
+  var next730 = (function () { var d = new Date(); d.setHours(7, 30, 0, 0); if (d < new Date()) d.setDate(d.getDate() + 1); return d; })();
+  var HOME = [51.4769, -0.0005];  // a public spot (Royal Observatory, Greenwich), not anyone's house
+  var S = {
+    'light.living_room': st('on', { brightness: 150 }), 'light.dining_room': st('off', { brightness: 0 }),
+    'input_boolean.movie_mode': st('off'), 'script.red_alert': st('off'),
+    'timer.tablet_timer': st('idle', { duration: '0:10:00' }),
+    'climate.living_room': st('auto', { current_temperature: 19.4 }), 'climate.dining_room': st('auto', { current_temperature: 18.9 }),
+    'climate.main_bedroom': st('auto', { current_temperature: 17.6 }), 'climate.kids_room': st('auto', { current_temperature: 18.2 }),
+    'climate.office': st('heat', { current_temperature: 16.8 }),
+    'sensor.bathroom_humidity': st('64'), 'sensor.tablet_battery': st('71'),
+    'script.upstairs_boost': st('off'), 'script.downstairs_boost': st('off'), 'script.whole_house_boost': st('off'), 'script.cancel_boosts': st('off'),
+    'input_boolean.wfh_day': st('on'), 'script.office_boost_toggle': st('off'), 'timer.office_boost': st('idle'),
+    'vacuum.robot': st('docked', { battery: 100 }),
+    // car
+    'sensor.demo_car_soc': st(64, { batteryRange: 212 }),
+    'sensor.demo_car_elveh': st(212, { maximumBatteryRange: 330 }),
+    'sensor.demo_car_elvehcharging': st('IN_PROGRESS', { plugStatus: 'CONNECTED', chargingkW: 7.1, chargingVoltage: 241, chargingAmperage: 29.6,
+      batteryTemperature: 11, estimatedEndTime: iso(now0 + 2.6 * HOUR) }),
+    'sensor.demo_car_elvehplug': st('CONNECTED'), 'switch.demo_car_elvehcharge': st('on'),
+    'select.demo_car_elvehtargetcharge': st('90'), 'sensor.demo_car_remotestartstatus': st('Inactive'),
+    'sensor.demo_car_remotestartcountdown': st(0), 'switch.demo_car_ignition': st('off'),
+    'switch.demo_car_departuretimes': st('on'),
+    'sensor.demo_car_departureschedules': st(iso(next730), { schedule: { weekdays: '07:30' } }),
+    'lock.demo_car_doorlock': st('locked'), 'sensor.demo_car_doorstatus': st('Closed'), 'sensor.demo_car_windowposition': st('Closed'),
+    'sensor.demo_car_tirepressure': st('Normal', { frontLeft: '36 psi', frontRight: '36 psi', rearLeft: '35 psi', rearRight: '35 psi' }),
+    'sensor.demo_car_battery': st(84, { batteryVoltage: 12.6 }), 'sensor.demo_car_odometer': st(18432),
+    'sensor.demo_car_cabintemperature': st(9), 'sensor.demo_car_outsidetemp': st(5),
+    'device_tracker.demo_car_tracker': st('home', { latitude: HOME[0] + 0.0004, longitude: HOME[1] + 0.0009 }),
+    'sensor.demo_car_lastrefresh': st(iso(now0 - 4 * 60e3)),
+    'sensor.demo_charger_power': st(7.1),
+    // server (numbers in GB / %)
+    'sensor.starbase_cpu_usage': st(14), 'sensor.starbase_cpu_load': st(0.62), 'sensor.starbase_memory_usage': st(46),
+    'sensor.starbase_memory_use': st(7340), 'sensor.starbase_uptime': st(iso(now0 - 12.4 * DAY)), 'sensor.starbase_containers_active': st(9),
+    'sensor.starbase_eth0_rx': st(3.4), 'sensor.starbase_eth0_tx': st(0.8),
+    'sensor.starbase_disk1_disk_usage': st(71), 'sensor.starbase_disk1_disk_used': st(2840), 'sensor.starbase_disk1_disk_size': st(4000),
+    'sensor.starbase_disk2_disk_usage': st(38), 'sensor.starbase_disk2_disk_used': st(1520), 'sensor.starbase_disk2_disk_size': st(4000),
+    'sensor.starbase_cache_disk_usage': st(22), 'sensor.starbase_cache_disk_used': st(105), 'sensor.starbase_cache_disk_size': st(476),
+    'sensor.starbase_cpu_temp': st(48), 'sensor.starbase_nvme_temp': st(41),
+    // energy
+    'sensor.demo_elec_rate': st(RATE_E), 'sensor.demo_elec_standing': st(0.6727),
+    'sensor.demo_gas_rate': st(RATE_G), 'sensor.demo_gas_standing': st(0.3143), 'sensor.demo_outdoor': st(tempAt(now0).toFixed(1)),
+    'sensor.washer_power': st(0), 'sensor.dehumidifier_power': st(168), 'sensor.desk_power': st(96),
+    // family
+    'zone.home': st('1', { latitude: HOME[0], longitude: HOME[1], friendly_name: 'Home' }),
+    'zone.work': st('1', { latitude: 51.5055, longitude: -0.0235, friendly_name: 'Work' }),
+    'person.alex': st('work', { latitude: 51.5052, longitude: -0.0229 }),
+    'person.sam': st('not_home', { latitude: 51.4846, longitude: 0.0087 }),
+    'sensor.home_alex_distance': st(3400, { unit_of_measurement: 'm' }), 'sensor.home_alex_direction_of_travel': st('stationary'),
+    'sensor.home_sam_distance': st(1250, { unit_of_measurement: 'm' }), 'sensor.home_sam_direction_of_travel': st('towards'),
+    'sensor.alex_phone_battery': st(58), 'sensor.sam_phone_battery': st(23),
+    'input_boolean.alert_alex': st('off'), 'input_boolean.alert_sam': st('on'),
+    'input_number.alex_trip_km': st(3.4), 'input_number.sam_trip_km': st(6.8),
+  };
+
+  // ---- dashboard config (same shape as the real one) -------------------
+  var cfg = {
+    title: 'Home Ops',
+    status: { battery_below: 25, exclude: [] },
+    car: { prefix: 'demo_car', path: '#car', pay_day: 27, charger: { power: 'sensor.demo_charger_power', kw: true, max_kw: 7.5 } },
+    server: { name: 'starbase', prefix: 'sensor.starbase_',
+      disks: [{ label: 'Disk 1', key: 'disk1', array: true }, { label: 'Disk 2', key: 'disk2', array: true }, { label: 'Cache', key: 'cache' }],
+      temps: [{ label: 'CPU', key: 'cpu_temp' }, { label: 'NVMe', key: 'nvme_temp' }] },
+    energy: {
+      elec: { kwh: 'demo:elec_kwh', cost: 'demo:elec_cost', rate: 'sensor.demo_elec_rate', standing: 'sensor.demo_elec_standing' },
+      gas: { kwh: 'demo:gas_kwh', cost: 'demo:gas_cost', rate: 'sensor.demo_gas_rate', standing: 'sensor.demo_gas_standing' },
+      outdoor: 'sensor.demo_outdoor',
+      devices: [
+        { name: 'Car charger', power: 'sensor.demo_charger_power', kw: true, max_kw: 7.5, lumpy: true, color: '#cc99cc' },
+        { name: 'Washing machine', energy: 'sensor.washer_energy', power: 'sensor.washer_power', max_kw: 3, color: '#9c9cff' },
+        { name: 'Dehumidifier', power: 'sensor.dehumidifier_power', max_kw: 1, color: '#66ccff' },
+        { name: 'Desk', power: 'sensor.desk_power', max_kw: 2, color: '#ffcc66' }] },
+    family: {
+      people: [
+        { name: 'Alex', person: 'person.alex', prefix: 'home_alex', battery: 'sensor.alex_phone_battery', alert: 'input_boolean.alert_alex', trip: 'input_number.alex_trip_km', color: '#ff9c00' },
+        { name: 'Sam', person: 'person.sam', prefix: 'home_sam', battery: 'sensor.sam_phone_battery', alert: 'input_boolean.alert_sam', trip: 'input_number.sam_trip_km', color: '#99ccff' }],
+      vehicles: [{ name: 'Shuttle', tracker: 'device_tracker.demo_car_tracker', color: '#cc99cc' }] },
+    nav: [
+      { label: 'LCARS', path: '#main' }, { label: 'Shuttle', path: '#car', only: 'lcars' }, { label: 'Family', path: '#family', only: 'lcars' },
+      { label: 'Energy', path: '#energy', only: 'lcars' }, { label: 'Server', path: '#server', only: 'lcars' }, { label: 'Terminal', path: '#terminal' }],
+    readouts: [
+      { label: 'Living room', entity: 'climate.living_room', attr: 'current_temperature', unit: '°C' },
+      { label: 'Dining room', entity: 'climate.dining_room', attr: 'current_temperature', unit: '°C' },
+      { label: 'Main bedroom', entity: 'climate.main_bedroom', attr: 'current_temperature', unit: '°C' },
+      { label: 'Kids room', entity: 'climate.kids_room', attr: 'current_temperature', unit: '°C' },
+      { label: 'Office', entity: 'climate.office', attr: 'current_temperature', unit: '°C' },
+      { label: 'Bathroom humidity', entity: 'sensor.bathroom_humidity', unit: '%', decimals: 0, min: 30, max: 100 },
+      { label: 'Tablet power', entity: 'sensor.tablet_battery', unit: '%', decimals: 0, min: 0, max: 100 }],
+    sections: [
+      { title: 'Lighting', items: [
+        { type: 'light', label: 'Living room', entity: 'light.living_room' },
+        { type: 'light', label: 'Dining room', entity: 'light.dining_room' },
+        { type: 'scene', label: 'Dim', entities: ['scene.dim'] }, { type: 'scene', label: 'Bright', entities: ['scene.bright'] },
+        { type: 'scene', label: 'Sleepy', entities: ['scene.sleepy'] },
+        { type: 'toggle', label: 'Movie mode', entity: 'input_boolean.movie_mode' },
+        { type: 'script', label: 'Red alert', entity: 'script.red_alert', alert: true, span: 2, color: '#cc3333' }] },
+      { title: 'Timer', only: 'lcars', items: [{ type: 'timer', label: 'Timer', entity: 'timer.tablet_timer', minutes: 10 }] },
+      { title: 'Environment', readouts: true, column: 2 },
+      { title: 'Heating boost', column: 2, items: [
+        { type: 'script', label: 'Upstairs', entity: 'script.upstairs_boost' },
+        { type: 'script', label: 'Downstairs', entity: 'script.downstairs_boost' },
+        { type: 'script', label: 'Whole house', entity: 'script.whole_house_boost' },
+        { type: 'script', label: 'Cancel boosts', entity: 'script.cancel_boosts' },
+        { type: 'toggle', label: 'WFH day', entity: 'input_boolean.wfh_day' },
+        { type: 'script', label: 'Office boost', entity: 'script.office_boost_toggle', timer: 'timer.office_boost', idle_text: '20°C · 2 HRS' }] },
+      { title: 'Shuttle', column: 2, only: 'lcars', car: true },
+      { title: 'Vacuum', term_column: 1, items: [{ type: 'vacuum', label: 'Robot', entity: 'vacuum.robot' }] }],
+  };
+
+  // ---- fake hass -------------------------------------------------------
+  var el = null, hass;
+  function push() { hass = Object.assign({}, hass, { states: Object.assign({}, S) }); if (el) el.hass = hass; }
+  function set(id, state, attrs) { var o = S[id] || st('off'); S[id] = st(state, Object.assign({}, o.attributes, attrs || {})); }
+  function ids(x) { var t = (x && (x.entity_id || (x.target && x.target.entity_id))) || (x && x.target) || []; return [].concat(t || []); }
+  function callService(domain, service, data, target) {
+    var list = ids(data).concat(ids({ target: target && target.entity_id }));
+    list.forEach(function (id) {
+      var dom = id.split('.')[0], cur = S[id] ? S[id].state : 'off';
+      if (dom === 'light' && data && data.brightness_step_pct != null) {
+        var nb = Math.max(0, Math.min(255, (cur === 'on' ? S[id].attributes.brightness || 0 : 0) + data.brightness_step_pct * 2.55));
+        set(id, nb > 0 ? 'on' : 'off', { brightness: nb });
+      } else if (dom === 'light' || dom === 'input_boolean' || (dom === 'switch' && id.indexOf('ignition') < 0)) {
+        var on = service === 'toggle' ? cur !== 'on' : service === 'turn_on';
+        var b = on ? (S[id].attributes.brightness || 180) : 0;
+        set(id, on ? 'on' : 'off', dom === 'light' ? { brightness: b } : {});
+      } else if (id === 'script.car_defrost' || id.indexOf('ignition') >= 0) {
+        var go = id === 'script.car_defrost';
+        set('sensor.demo_car_remotestartstatus', go ? 'Active' : 'Inactive');
+        set('sensor.demo_car_remotestartcountdown', go ? 15 : 0);
+      } else if (dom === 'script') {
+        if (id === 'script.office_boost_toggle') {
+          if (S['timer.office_boost'].state === 'active') set('timer.office_boost', 'idle');
+          else set('timer.office_boost', 'active', { finishes_at: iso(Date.now() + 2 * HOUR) });
+        }
+        set(id, 'on'); setTimeout(function () { set(id, 'off'); push(); }, 1500);
+      } else if (dom === 'timer') {
+        if (service === 'start') {
+          var p = (data && data.duration ? String(data.duration) : '0:10:00').split(':').map(Number);
+          set(id, 'active', { finishes_at: iso(Date.now() + (p[0] * 3600 + p[1] * 60 + (p[2] || 0)) * 1000) });
+        } else if (service === 'pause') set(id, 'paused', { remaining: '0:05:00' });
+        else set(id, 'idle');
+      } else if (dom === 'vacuum') {
+        set(id, service === 'start' ? 'cleaning' : service === 'pause' ? 'paused' : 'returning');
+        if (service !== 'start' && service !== 'pause') setTimeout(function () { set(id, 'docked'); push(); }, 4000);
+      } else if (dom === 'select') set(id, data.option);
+      else if (dom === 'lock') set(id, service === 'lock' ? 'locked' : 'unlocked');
+    });
+    push();
+    return Promise.resolve();
+  }
+  hass = {
+    states: Object.assign({}, S), entities: {}, user: { is_admin: true }, language: 'en',
+    callService: callService,
+    callWS: function (m) {
+      if (m.type === 'recorder/statistics_during_period') return new Promise(function (r) { setTimeout(function () { r(stats(m)); }, 250); });
+      if (m.type === 'persistent_notification/get') return Promise.resolve([]);
+      return Promise.resolve({ issues: [] });
+    },
+    callApi: function () { return Promise.reject(new Error('no backend in the demo')); },
+  };
+
+  // ---- page switching (nav buttons change the #hash) -------------------
+  var pages = { main: 1, car: 1, family: 1, energy: 1, server: 1, terminal: 1 };
+  function page() { var h = location.hash.replace('#', ''); return pages[h] ? h : 'main'; }
+  window.tpNavigate = function (path) { window.__tpNavAt = Date.now(); window.__tpNavFrom = '#' + page(); location.hash = path; };
+  ['lcars-panel-card', 'terminal-panel-card'].forEach(function (n) {
+    customElements.get(n).prototype._navActive = function (x) { return x.path === '#' + page() || (x.path === '#main' && page() === 'main'); };
+  });
+  function show() {
+    var p = page(), kind = p === 'terminal' ? 'terminal-panel-card' : 'lcars-panel-card';
+    var c = JSON.parse(JSON.stringify(cfg));
+    if (p === 'terminal') { c.title = 'Home Systems Interface'; c.subtitle = 'Demo node // Link nominal'; }
+    else if (p !== 'main') { c.page = p; c.title = { car: 'Shuttle', family: 'Crew Locator', energy: 'Power Grid', server: 'Engineering' }[p]; }
+    if (el) el.remove();
+    el = document.createElement(kind); el.setConfig(c);
+    if (p === 'server') { // the real page asks the server's Glances API for this list
+      el._ctr = { at: Date.now(), list: [['plex', 6.2, 1450], ['home-assistant', 3.1, 610], ['nextcloud', 1.4, 380], ['photoprism', 0.9, 920],
+        ['mariadb', 0.6, 240], ['nginx-proxy', 0.3, 45], ['pihole', 0.2, 60], ['glances', 0.8, 70], ['backup', 0, 0]].map(function (x) {
+        return { name: x[0], status: x[2] ? 'running' : 'exited', cpu: { total: x[1] }, memory: { usage: x[2] * 1048576 } }; }) };
+    }
+    document.body.appendChild(el); el.hass = hass;
+  }
+  window.addEventListener('hashchange', show);
+  show();
+})();
+</script>
+</body>
+</html>

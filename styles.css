@@ -157,6 +157,28 @@ img {
   flex: 1;
 }
 
+/* Embedded demo: the page inside is laid out at 1280x800 and scaled to fit. */
+.demo-frame {
+  display: block;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: #000;
+}
+
+.demo-frame iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1280px;
+  height: 800px;
+  border: 0;
+  transform-origin: 0 0;
+}
+
 footer {
   margin-top: 4rem;
   padding-top: 1rem;
