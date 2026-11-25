@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Echo Show 5 Music Player - Brimbles</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header>
+    <h1><a href="../index.html">~/brimbles</a></h1>
+    <p class="prompt">Echo Show 5 Music Player</p>
+  </header>
+
+  <main>
+    <article class="post">
+      <p class="post-date">2026-11-25</p>
+
+<p>An Amazon Echo Show 5, flashed with LineageOS so it runs plain Android instead of Alexa, turned into a kitchen music player. Tap a playlist on the home screen and it plays, or pick the Echo from Spotify on any phone in the house and play through it.</p>
+<h3>What It Does</h3>
+<ul>
+  <li>One-tap playlists: each tile starts a Spotify playlist straight away</li>
+  <li>A now-playing bar with the cover, song, artist and back, pause and skip buttons</li>
+  <li>Casting from any phone: the Echo shows up in Spotify's device list as RimbleWarble, for any Premium account on the Wi-Fi, not just the one logged in on the Echo</li>
+  <li>An Apps button for everything else, so Settings is still there when it's needed</li>
+  <li>No lock screen: the top button goes straight to the home screen</li>
+</ul>
+<h3>How It Works</h3>
+<ul>
+  <li>The home screen is a small Android app I wrote, replacing the normal launcher. It's built with a shell script instead of Gradle, because a whole Android Studio setup felt like a lot for one screen</li>
+  <li>The Echo only has a 32-bit processor, so a lot of current apps won't install. Spotify still works, installed through Aurora Store</li>
+  <li>A tile opens a special Spotify link that starts the playlist playing, then the home screen comes back once the song changes. Spotify ignored every attempt to start a playlist without coming to the front, and Android only lets an app bring itself back for a few seconds, so the timing took some fiddling</li>
+  <li>The normal Spotify app only appears as a speaker to the account logged into it. Spotify's TV app would fix that, but it refuses to run on anything that isn't a TV. So RimbleWarble is librespot, an open-source Spotify Connect receiver, cross-compiled for 32-bit Android and wrapped in an app that starts it at boot and plays its audio through the speaker</li>
+</ul>
+<h3>Credits</h3>
+<p>Background photo: "Puzzlewood" by Neil Barnwell, from <a href="https://commons.wikimedia.org/wiki/File:Puzzlewood_%283899465021%29.jpg">Wikimedia Commons</a>, licensed <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC BY-SA 2.0</a>. Cropped and resized.</p>
+<p>Spotify Connect receiver: <a href="https://github.com/librespot-org/librespot">librespot</a>.</p>
+    </article>
+  </main>
+
+  <footer>
+    <p><a href="../index.html">&lt; back to projects</a></p>
+  </footer>
+</body>
+</html>
