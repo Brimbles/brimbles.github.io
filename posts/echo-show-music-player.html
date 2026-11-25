@@ -17,6 +17,7 @@
       <p class="post-date">2026-11-25</p>
 
 <p>An Amazon Echo Show 5, flashed with LineageOS so it runs plain Android instead of Alexa, turned into a kitchen music player. Tap a playlist on the home screen and it plays, or pick the Echo from Spotify on any phone in the house and play through it.</p>
+<img src="../assets/images/echo-show-music-player/stock-echo-show-5.jpg" alt="A stock Echo Show 5 running Alexa, before any of this (not mine; photo credited below)">
 <h3>What It Does</h3>
 <ul>
   <li>One-tap playlists: each tile starts a Spotify playlist straight away</li>
@@ -25,6 +26,8 @@
   <li>An Apps button for everything else, so Settings is still there when it's needed</li>
   <li>No lock screen: the top button goes straight to the home screen</li>
 </ul>
+<p>The home screen sits on a photo of Puzzlewood in the Forest of Dean, darkened a little so the clock and labels stay readable.</p>
+<img src="../assets/images/echo-show-music-player/background.jpg" alt="The Puzzlewood photo used as the home screen background">
 <h3>How It Works</h3>
 <ul>
   <li>The home screen is a small Android app I wrote, replacing the normal launcher. It's built with a shell script instead of Gradle, because a whole Android Studio setup felt like a lot for one screen</li>
@@ -32,7 +35,9 @@
   <li>A tile opens a special Spotify link that starts the playlist playing, then the home screen comes back once the song changes. Spotify ignored every attempt to start a playlist without coming to the front, and Android only lets an app bring itself back for a few seconds, so the timing took some fiddling</li>
   <li>The normal Spotify app only appears as a speaker to the account logged into it. Spotify's TV app would fix that, but it refuses to run on anything that isn't a TV. So RimbleWarble is librespot, an open-source Spotify Connect receiver, cross-compiled for 32-bit Android and wrapped in an app that starts it at boot and plays its audio through the speaker</li>
 </ul>
+<img src="../assets/images/echo-show-music-player/rimblewarble-icon.png" alt="The RimbleWarble app icon">
 <h3>Credits</h3>
+<p>Echo Show 5 photo: "Echo Show 5" by SammyZimmermanns, from <a href="https://commons.wikimedia.org/wiki/File:Echo_Show_5.jpg">Wikimedia Commons</a>, licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>. Resized, and cropped for the thumbnail.</p>
 <p>Background photo: "Puzzlewood" by Neil Barnwell, from <a href="https://commons.wikimedia.org/wiki/File:Puzzlewood_%283899465021%29.jpg">Wikimedia Commons</a>, licensed <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC BY-SA 2.0</a>. Cropped and resized.</p>
 <p>Spotify Connect receiver: <a href="https://github.com/librespot-org/librespot">librespot</a>.</p>
     </article>

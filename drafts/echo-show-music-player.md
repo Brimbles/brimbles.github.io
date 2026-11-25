@@ -2,10 +2,12 @@
 title: Echo Show 5 Music Player
 date: 2026-11-25
 summary: An old Echo Show 5 reflashed with LineageOS, now a Spotify speaker any phone can cast to, with one-tap playlists on a woodland home screen
+thumbnail: assets/images/echo-show-music-player/thumbnail.png
 ---
 
 An Amazon Echo Show 5, flashed with LineageOS so it runs plain Android instead of Alexa, turned into a kitchen music player. Tap a playlist on the home screen and it plays, or pick the Echo from Spotify on any phone in the house and play through it.
 
+![A stock Echo Show 5 running Alexa, before any of this (not mine; photo credited below)](assets/images/echo-show-music-player/stock-echo-show-5.jpg)
 
 ## What It Does
 
@@ -15,6 +17,10 @@ An Amazon Echo Show 5, flashed with LineageOS so it runs plain Android instead o
 - An Apps button for everything else, so Settings is still there when it's needed
 - No lock screen: the top button goes straight to the home screen
 
+The home screen sits on a photo of Puzzlewood in the Forest of Dean, darkened a little so the clock and labels stay readable.
+
+![The Puzzlewood photo used as the home screen background](assets/images/echo-show-music-player/background.jpg)
+
 ## How It Works
 
 - The home screen is a small Android app I wrote, replacing the normal launcher. It's built with a shell script instead of Gradle, because a whole Android Studio setup felt like a lot for one screen
@@ -22,8 +28,11 @@ An Amazon Echo Show 5, flashed with LineageOS so it runs plain Android instead o
 - A tile opens a special Spotify link that starts the playlist playing, then the home screen comes back once the song changes. Spotify ignored every attempt to start a playlist without coming to the front, and Android only lets an app bring itself back for a few seconds, so the timing took some fiddling
 - The normal Spotify app only appears as a speaker to the account logged into it. Spotify's TV app would fix that, but it refuses to run on anything that isn't a TV. So RimbleWarble is librespot, an open-source Spotify Connect receiver, cross-compiled for 32-bit Android and wrapped in an app that starts it at boot and plays its audio through the speaker
 
+![The RimbleWarble app icon](assets/images/echo-show-music-player/rimblewarble-icon.png)
 
 ## Credits
+
+Echo Show 5 photo: "Echo Show 5" by SammyZimmermanns, from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Echo_Show_5.jpg), licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Resized, and cropped for the thumbnail.
 
 Background photo: "Puzzlewood" by Neil Barnwell, from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Puzzlewood_%283899465021%29.jpg), licensed [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/). Cropped and resized.
 
