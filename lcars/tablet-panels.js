@@ -72,7 +72,8 @@ function tpSave(key, on) {
 // Electricity "today" = Home Mini live total when it reports, otherwise the typical hourly
 // profile (last 14 days, without lumpy loads such as the car) plus what the lumpy plugs
 // actually used today. Gas "today" = a straight-line fit of daily gas against outdoor temperature.
-function tpEnergyModel(cfg, day, hour, states, now) {
+// devDays: window for the Devices breakdown (1, 7 or 30 days, default 7).
+function tpEnergyModel(cfg, day, hour, states, now, devDays) {
   var num = function (id) { var s = id && states[id]; var v = s ? parseFloat(s.state) : NaN; return isNaN(v) ? null : v; };
   var ms = function (x) { return typeof x.start === 'number' ? x.start : Date.parse(x.start); };
   var dkey = function (t) { var d = new Date(t); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
@@ -115,14 +116,25 @@ function tpEnergyModel(cfg, day, hour, states, now) {
     return { name: d.name, color: d.color, lumpy: !!d.lumpy, ser: ser, nowW: p == null ? null : p * (d.kw ? 1000 : 1) };
   });
   var weekStart = now.getTime() - 7 * 864e5, typStart = now.getTime() - 14 * 864e5;
+  devDays = devDays || 7;
+  var devStart = now.getTime() - devDays * 864e5;
 
   var houseWeek = 0, houseHours = [];
   Object.keys(houseE).forEach(function (t) { if (+t >= weekStart) { houseWeek += houseE[t]; houseHours.push(+t); } });
+
+  // Devices over the chosen window. The plugs are current; Octopus (house total, gas) runs a day
+  // or more behind, so "Everything else" only counts hours that Octopus has reported.
+  var houseDev = 0, houseDevHours = 0, houseLast = null;
+  Object.keys(houseE).forEach(function (t) {
+    if (+t < devStart) return;
+    houseDev += houseE[t]; houseDevHours++;
+    if (houseLast == null || +t > houseLast) houseLast = +t;
+  });
   var metered = 0;
   var devices = devs.map(function (d) {
     var k = 0, peak = null, inHouse = 0;
     Object.keys(d.ser).forEach(function (t) {
-      if (+t < weekStart) return;
+      if (+t < devStart) return;
       k += d.ser[t];
       if (houseE[t] != null) inHouse += d.ser[t];
       if (!peak || d.ser[t] > peak.kwh) peak = { at: +t, kwh: d.ser[t] };
@@ -130,9 +142,18 @@ function tpEnergyModel(cfg, day, hour, states, now) {
     metered += inHouse;
     return { name: d.name, color: d.color, kwh: k, cost: k * rateE, peak: peak, nowW: d.nowW };
   });
-  devices.push({ name: 'Everything else', color: '#777', kwh: Math.max(0, houseWeek - metered), cost: Math.max(0, houseWeek - metered) * rateE, nowW: null });
-  devices.sort(function (a, b) { return b.kwh - a.kwh; });
-  var gasWeek = 0; Object.keys(houseG).forEach(function (t) { if (+t >= weekStart) gasWeek += houseG[t]; });
+  // Too little of the window reported (typical for the 24-hour view): don't show a misleading figure.
+  var houseKnown = houseDevHours >= devDays * 12;
+  devices.push({ name: 'Everything else', color: '#777', rest: true, unknown: !houseKnown,
+    kwh: houseKnown ? Math.max(0, houseDev - metered) : null, cost: houseKnown ? Math.max(0, houseDev - metered) * rateE : null, nowW: null });
+  devices.sort(function (a, b) { return (b.kwh || 0) - (a.kwh || 0); });
+  var gasDev = 0, gasDevHours = 0, gasLast = null;
+  Object.keys(houseG).forEach(function (t) {
+    if (+t < devStart) return;
+    gasDev += houseG[t]; gasDevHours++;
+    if (gasLast == null || +t > gasLast) gasLast = +t;
+  });
+  var devTotal = 0; devices.forEach(function (d) { devTotal += d.kwh || 0; });
 
   // Spikes: whole-house hours well above the usual hour, split by metered device.
   var vals = houseHours.map(function (t) { return houseE[t]; }).sort(function (a, b) { return a - b; });
@@ -203,7 +224,9 @@ function tpEnergyModel(cfg, day, hour, states, now) {
   return {
     today: { live: liveEK != null || liveGK != null, elecKwh: elecKwh, elecCost: elecCost, gasKwh: gasKwh, gasCost: gasCost, standing: standing, total: total },
     daily: daily, week: last7.length ? week : null, monthProj: monthProj, gasVs: gasVs,
-    devices: devices, houseWeek: houseWeek, gasWeek: gasWeek, gasWeekCost: gasWeek * rateG,
+    devices: devices, devDays: devDays, devTotal: devTotal, houseWeek: houseWeek,
+    houseLast: houseLast, houseBehind: houseLast == null || now.getTime() - houseLast > 3 * 36e5,
+    gasDev: gasDevHours >= devDays * 12 ? gasDev : null, gasDevCost: gasDevHours >= devDays * 12 ? gasDev * rateG : null, gasLast: gasLast,
     spikes: spikes, gasSpikes: gasSpikes, nowW: demand != null ? demand : meteredNow, nowLive: demand != null,
     tempNow: tempNow, fit: { a: fitA, b: fitB, n: pts.length }, rateE: rateE, rateG: rateG,
   };
@@ -735,6 +758,7 @@ button:active { filter:brightness(1.35); }
 .dep .b:first-child { border-radius:20px 0 0 20px; } .dep .b:last-child { border-radius:0 20px 20px 0; }
 .carpg { grid-template-columns:1fr 1fr; }
 .kv .v.hi { color:#99ff99; }
+.kv .v.dim, .bars .v.dim { color:#888; }
 .bars { display:grid; grid-template-columns:auto 1fr auto; gap:5px 10px; align-items:center; font-size:18px; margin:4px 0 6px; }
 .bars .k { color:#cc99cc; white-space:nowrap; } .bars .v { color:#ffcc66; text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .mbar { display:block; height:14px; background:#262626; position:relative; }
@@ -912,6 +936,15 @@ class LcarsPanelCard extends TabletPanelBase {
 
   _ui(what) {
     if (what.indexOf('car:') === 0) { this._carAction(what.split(':')[1], what.split(':')[2]); return; }
+    if (what.indexOf('en:days:') === 0) {
+      var nd = +what.split(':')[2];
+      if ([1, 7, 30].indexOf(nd) < 0 || nd === this._enDays()) return;
+      this._enDaysV = nd;
+      try { localStorage.setItem('tp-en-days', String(nd)); } catch (e) { /* no storage */ }
+      if (this._audioOn) tpAudio.seq(LCARS_SFX.tap, 'triangle', 0.2);
+      this._render();
+      return;
+    }
     if (what.indexOf('fam:') === 0) {
       var fp = this._famPeople()[+what.split(':')[2]];
       if (!fp) return;
@@ -1181,6 +1214,16 @@ class LcarsPanelCard extends TabletPanelBase {
     return ids.filter(Boolean);
   }
 
+  // Devices window in days (1, 7 or 30), remembered per tablet.
+  _enDays() {
+    if (!this._enDaysV) {
+      var v = 7;
+      try { v = +localStorage.getItem('tp-en-days') || 7; } catch (e) { /* no storage */ }
+      this._enDaysV = [1, 7, 30].indexOf(v) >= 0 ? v : 7;
+    }
+    return this._enDaysV;
+  }
+
   _fetchEnergy() {
     var e = this._config.energy, self = this;
     if (!e || this._enBusy || !this._hass || !this._hass.callWS) return;
@@ -1192,7 +1235,7 @@ class LcarsPanelCard extends TabletPanelBase {
       return self._hass.callWS({ type: 'recorder/statistics_during_period', start_time: new Date(now - days * 864e5).toISOString(),
         statistic_ids: ids, period: period, types: ['change', 'mean'] });
     };
-    Promise.all([q(dayIds, 'day', 62), q(hourIds, 'hour', 15)])
+    Promise.all([q(dayIds, 'day', 62), q(hourIds, 'hour', 31)])
       .then(function (r) { self._en = { day: r[0] || {}, hour: r[1] || {}, at: Date.now() }; })
       .catch(function () { self._en = { day: (self._en || {}).day || {}, hour: (self._en || {}).hour || {}, at: Date.now(), err: true }; })
       .then(function () { self._enBusy = false; if (self._config.page === 'energy') self._render(); });
@@ -1205,7 +1248,7 @@ class LcarsPanelCard extends TabletPanelBase {
     }
     var states = {};
     this._energyIds().forEach(function (id) { if (self._st(id)) states[id] = self._st(id); });
-    var m = tpEnergyModel(e, this._en.day, this._en.hour, states, new Date());
+    var m = tpEnergyModel(e, this._en.day, this._en.hour, states, new Date(), this._enDays());
     var gbp = function (v) { return v == null || isNaN(v) ? '--' : '£' + v.toFixed(2); };
     var kwh = function (v) { return v == null ? '--' : (v >= 100 ? Math.round(v) : v.toFixed(1)) + ' KWH'; };
     var kv = function (rows) {
@@ -1242,14 +1285,22 @@ class LcarsPanelCard extends TabletPanelBase {
       kv([['Last 7 days', gbp(m.week)], ['This month (proj.)', gbp(m.monthProj)],
         ['Gas vs weather (7 days)', m.gasVs == null ? '--' : (m.gasVs > 0 ? '+' : '') + Math.round(m.gasVs) + '%', m.gasVs == null ? '' : m.gasVs > 5 ? 'warn' : m.gasVs < -5 ? 'hi' : '']]);
 
-    // Devices
-    var dev = '<div class="bars">' + m.devices.map(function (d) {
-      var pct = m.houseWeek ? d.kwh / m.houseWeek * 100 : 0;
+    // Devices, over 1, 7 or 30 days (chips switch it; the choice is remembered on this tablet).
+    var span = m.devDays === 1 ? 'Last 24 hours' : 'Last ' + m.devDays + ' days';
+    var dchips = '<div class="chips">' + [1, 7, 30].map(function (n) {
+      return '<button class="b' + (n === m.devDays ? '' : ' off') + '" data-ui="en:days:' + n + '" style="background:' + LC[1] + '">' +
+        '<span class="l">' + n + (n === 1 ? ' day' : ' days') + '</span></button>';
+    }).join('') + '</div>';
+    var dev = dchips + '<div class="bars">' + m.devices.map(function (d) {
+      var pct = m.devTotal && d.kwh != null ? d.kwh / m.devTotal * 100 : 0;
+      var val = d.unknown ? 'AWAITING OCTOPUS' : kwh(d.kwh) + ' ' + gbp(d.cost);
       return '<span class="k">' + esc(d.name) + '</span>' +
         '<span class="mbar"><i style="width:' + Math.min(100, pct) + '%;background:' + (d.color || EC) + '"></i></span>' +
-        '<span class="v">' + kwh(d.kwh) + ' ' + gbp(d.cost) + (d.nowW != null && d.nowW >= 5 ? ' · ' + (d.nowW >= 1000 ? (d.nowW / 1000).toFixed(1) + 'KW' : Math.round(d.nowW) + 'W') : '') + '</span>';
-    }).join('') + '</div>' +
-      kv([['Gas heating + hot water', kwh(m.gasWeek) + ' ' + gbp(m.gasWeekCost)]]);
+        '<span class="v' + (d.unknown ? ' dim' : '') + '">' + val + (d.nowW != null && d.nowW >= 5 ? ' · ' + (d.nowW >= 1000 ? (d.nowW / 1000).toFixed(1) + 'KW' : Math.round(d.nowW) + 'W') : '') + '</span>';
+    }).join('') + '</div>';
+    var drows = [['Gas heating + hot water', m.gasDev == null ? 'AWAITING OCTOPUS' : kwh(m.gasDev) + ' ' + gbp(m.gasDevCost), m.gasDev == null ? 'dim' : '']];
+    if (m.houseBehind && m.houseLast != null) drows.push(['House total up to', when(m.houseLast + 36e5), 'dim']);
+    dev += kv(drows);
 
     // Spikes
     var spikes = m.spikes.length ? '<div class="spk">' + m.spikes.map(function (s) {
@@ -1261,7 +1312,7 @@ class LcarsPanelCard extends TabletPanelBase {
     return [
       { title: 'Today', html: today, color: LC[3] },
       { title: 'Daily cost · 30 days', html: chart, color: LC[5] },
-      { title: 'Devices · 7 days', html: dev, color: LC[1], column: 2 },
+      { title: 'Devices · ' + span.replace('Last ', '').toLowerCase(), html: dev, color: LC[1], column: 2 },
       { title: 'Spikes · 7 days', html: spikes + gasSp + (this._en.err ? kv([['Note', 'HISTORY MAY BE STALE', 'warn']]) : ''), color: LC[6], column: 2 },
     ];
   }

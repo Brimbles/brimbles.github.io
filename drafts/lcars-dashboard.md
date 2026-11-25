@@ -22,7 +22,7 @@ The buttons down the left side switch between pages.
 - Main: lights and scenes, a kitchen timer, room temperatures, heating boosts and the robot vacuum
 - Car: charge level, charge limit, defrost, departure times, tyres and locks, and how much home charging has cost since payday
 - Family: a map showing where everyone is, how far from home and whether they're heading back
-- Energy: today's cost (estimated, because the meter data arrives a day or two late), 30 days of electricity and gas, which devices use the most, and the biggest spikes
+- Energy: today's cost (estimated, because the meter data arrives a day or two late), 30 days of electricity and gas, which devices use the most over the last day, week or month, and the biggest spikes
 - Server: CPU, memory, disks and Docker containers on the home server
 - Terminal: the same controls in a green-screen terminal style
 
