@@ -155,6 +155,44 @@ INDEX_TEMPLATE = """\
 """
 
 
+def build_gallery(slug, title):
+    """A viewer and thumbnail grid for every image in assets/images/<slug>/.
+
+    Thumbnails come from the thumbs/ subfolder when there is one.
+    """
+    folder = ROOT_DIR / "assets" / "images" / slug
+    images = sorted(p for p in folder.glob("*") if p.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp"))
+    if not images:
+        return ""
+
+    count = len(images)
+    base = f"../assets/images/{slug}"
+    first = f"{base}/{images[0].name}"
+    thumbs = ""
+    for i, img in enumerate(images, 1):
+        thumb = f"{base}/thumbs/{img.name}" if (folder / "thumbs" / img.name).exists() else f"{base}/{img.name}"
+        current = ' aria-current="true"' if i == 1 else ""
+        thumbs += (
+            f'        <button type="button" class="gallery-thumb" data-full="{base}/{img.name}"{current}'
+            f' aria-label="Show photo {i} of {count}"><img src="{thumb}" alt="" loading="lazy"></button>\n'
+        )
+
+    return f"""
+      <section class="gallery" aria-label="Photo gallery">
+        <h3>Gallery</h3>
+        <figure class="gallery-main">
+          <a class="gallery-full" href="{first}" target="_blank" rel="noopener"><img src="{first}" alt="{title}: photo 1 of {count}"></a>
+          <button type="button" class="gallery-nav gallery-prev" aria-label="Previous photo">&lt;</button>
+          <button type="button" class="gallery-nav gallery-next" aria-label="Next photo">&gt;</button>
+          <figcaption><span class="gallery-pos">1</span> / {count}</figcaption>
+        </figure>
+        <div class="gallery-thumbs">
+{thumbs}        </div>
+      </section>
+      <script src="../gallery.js" defer></script>
+"""
+
+
 def build():
     POSTS_DIR.mkdir(exist_ok=True)
 
@@ -170,6 +208,8 @@ def build():
         slug = md_file.stem
 
         body_html = convert_markdown(body)
+        if meta.get("gallery", "").lower() in ("yes", "true"):
+            body_html += build_gallery(slug, title)
 
         post_html = POST_TEMPLATE.format(title=title, date=date, body=body_html)
         out_path = POSTS_DIR / f"{slug}.html"

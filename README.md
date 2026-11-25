@@ -38,6 +38,11 @@ Regular paragraphs, **bold**, *italic*, and [links](https://example.com).
 
 2. Put any images in `assets/images/your-project-name/`
 
+   For a post with lots of photos, add `gallery: yes` to the frontmatter. The build adds a
+   gallery at the end of the post: a large viewer with previous/next and a grid of every image in
+   `assets/images/<post-name>/`, using small versions from a `thumbs/` subfolder when there is one.
+   Clicking a photo in the post opens it in the gallery.
+
 3. Run the build:
 
 ```
