@@ -2,9 +2,12 @@
 title: Adding a Movies Share to Jellyfin on Unraid
 date: 2026-11-22
 summary: How to get an Unraid share into a Jellyfin library, and why Jellyfin can't see it until you map it into the container
+thumbnail: assets/images/jellyfin-unraid-movies/thumbnail.png
 ---
 
 I've set up Jellyfin on my Unraid server. The first thing that caught me out was that Jellyfin couldn't see my movies share at all. This is how to fix that.
+
+![A NAS sending films to a play button](assets/images/jellyfin-unraid-movies/thumbnail.png)
 
 ## Why Jellyfin Can't See Your Shares
 
