@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hedgehog Player - Brimbles</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header>
+    <h1><a href="../index.html">~/brimbles</a></h1>
+    <p class="prompt">Hedgehog Player</p>
+  </header>
+
+  <main>
+    <article class="post">
+      <p class="post-date">2026-11-25</p>
+
+<p>Hedgehog Player is a music player I'm building for our family's Windows PCs. All our music lives on the Unraid server, and I wanted one app that everyone, kids included, can use to play it, look after the library, and eventually load music onto old iPods and MP3 players.</p>
+<img src="../assets/images/hedgehog-player/playing.png" alt="Playing an album in Hedgehog Player">
+<h3>The Player</h3>
+<p>The player came first, and I wanted it to sound right before anything else:</p>
+<ul>
+  <li>Plays MP3, FLAC, WAV, OGG, Opus, AAC and ALAC</li>
+  <li>Gapless playback, so live albums and DJ mixes don't stop between tracks</li>
+  <li>Crossfade that turns itself off between songs on the same album</li>
+  <li>ReplayGain volume levelling, so quiet and loud albums play at the same level</li>
+  <li>A 10-band equaliser with presets</li>
+  <li>Windows media keys and the "now playing" overlay</li>
+  <li>A mini player that can stay on top of other windows</li>
+</ul>
+<img src="../assets/images/hedgehog-player/equaliser.png" alt="The equaliser">
+<img src="../assets/images/hedgehog-player/mini-player.png" alt="The mini player">
+<h3>The Library</h3>
+<p>The library builds itself from the music on the NAS: songs, albums with artwork, artists, genres and composers, with instant search. It also does playlists and smart playlists, ratings and play counts, tag editing for one song or many at once, and volume measurement for songs that don't have ReplayGain tags yet. Album art comes from the files, a cover image in the folder, or MusicBrainz.</p>
+<img src="../assets/images/hedgehog-player/albums.png" alt="Albums in Hedgehog Player">
+<h3>Music Even When the NAS Is Off</h3>
+<p>Each PC quietly copies the songs you play, the whole album by default, so they keep playing when the server is off or the laptop is away from home. You can also mark albums, artists and playlists <strong>Keep on this PC</strong> to always have them. When the NAS can't be reached, songs that can't play are marked, and <strong>Playable now only</strong> hides them.</p>
+<img src="../assets/images/hedgehog-player/offline.png" alt="Hedgehog Player with the NAS offline">
+<h3>How It Uses Jellyfin</h3>
+<p>Hedgehog Player leans on a Jellyfin server running on the Unraid box. Rather than every PC scanning thousands of files over the network, Jellyfin indexes the music once and each PC syncs the library from it in seconds, along with album artwork. The songs themselves still play straight from the NAS's mapped drive, and ratings, play counts and playlists stay on each PC. It can also just scan a music folder without Jellyfin, but with a big library Jellyfin makes it much quicker.</p>
+<p>Setting it up takes four steps:</p>
+<ul>
+  <li>Install Jellyfin on Unraid and give its container your music share, e.g. as <code>/data/music</code></li>
+  <li>Add a <strong>Music</strong> library in Jellyfin pointing at that folder</li>
+  <li>Create an API key under <strong>Dashboard</strong>, then <strong>API Keys</strong></li>
+  <li>In Hedgehog's settings, enter the server address and key, pick the library, and tell it where the same folder is on the PC (e.g. <code>M:\</code>)</li>
+</ul>
+<h3>What's Next</h3>
+<p>The player and library are done. Next up:</p>
+<ul>
+  <li>Syncing music to old iPods and MP3 players</li>
+  <li>Themes</li>
+  <li>A kids mode with a simpler screen, explicit songs hidden, and a PIN to switch back</li>
+</ul>
+    </article>
+  </main>
+
+  <footer>
+    <p><a href="../index.html">&lt; back to projects</a></p>
+  </footer>
+</body>
+</html>
