@@ -1,5 +1,5 @@
 ---
 title: VW Caddy Campervan
-date: 2021-06-01
+date: 2017-03-04
 summary: Converting a VW Caddy into a micro campervan
 ---
