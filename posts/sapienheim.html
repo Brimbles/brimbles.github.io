@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sapienheim - Brimbles</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header>
+    <h1><a href="../index.html">~/brimbles</a></h1>
+    <p class="prompt">Sapienheim</p>
+  </header>
+
+  <main>
+    <article class="post">
+      <p class="post-date">2026-09-29</p>
+
+<p>Sapienheim is an AI companion for Valheim dedicated servers. You talk to it in chat, and it follows you, fights beside you, gathers, crafts and builds. It keeps working when nobody is nearby.</p>
+<img src="../assets/images/sapienheim/icon.png" alt="The Sapienheim icon: a rune in a speech bubble">
+<h3>How It Works</h3>
+<p>There are two halves:</p>
+<ul>
+  <li><strong>The mod</strong> runs on the game server, written in C# with BepInEx, Harmony and Jötunn. It does the actual work: pathfinding, combat, gathering, crafting, building, portals, inventory, and saving everything. Every player needs the mod too, but their copy only shows the companion and passes chat along.</li>
+  <li><strong>The agent</strong> is a small Python program that runs next to the server. It turns chat and game events into tool calls for Claude (follow, gather, craft, build and so on) and sends Claude's choices back to the mod as commands. It also holds the companion's long-term memory.</li>
+</ul>
+<p>Claude is only asked when something happens, never every frame, and there's a per-minute budget so the API bill stays sensible. Players never need a key of their own.</p>
+<h3>What the Companion Can Do</h3>
+<ul>
+  <li>Follow, stay, or walk somewhere up to 5 km away, through portals if needed.</li>
+  <li>Fight, dropping whatever it's doing to defend you.</li>
+  <li>Pick up and hand over items, use chests, gather wood, stone and plants, and craft at stations. It won't chop or mine inside someone's ward.</li>
+  <li>Build from templates like a hut or a ring of walls, name the places it builds, travel back to them and repair them.</li>
+  <li>Keep its inventory through death, restarts and going off duty when everyone logs off. It levels up with its master and shows on the map.</li>
+  <li>Remember players, places and past conversations, and speak up on its own at dusk, when it's hurt, when it's bored or when you come back.</li>
+</ul>
+<h3>Personality</h3>
+<p>The default companion is a friendly Viking with a dry wit. You can give it any persona you like with a text file. I've written two: Alvar the Barbarian, a deadpan, muscle-bound barbarian with matching voice clips, and a pompous skald in the style of Alan Partridge.</p>
+<h3>Try It</h3>
+<p>The mod is on <a href="https://thunderstore.io/c/valheim/p/brimbles_sapienheim/Sapienheim/">Thunderstore</a> and the agent is a Docker image. You need your own dedicated server and a Claude API key. The code and install guide are on GitHub: <a href="https://github.com/Brimbles/sapienheim">Brimbles/sapienheim</a>.</p>
+<p>It's experimental: it works on my server, but expect rough edges.</p>
+    </article>
+  </main>
+
+  <footer>
+    <p><a href="../index.html">&lt; back to projects</a></p>
+  </footer>
+</body>
+</html>
