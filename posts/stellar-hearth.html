@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stellar Hearth - Brimbles</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header>
+    <h1><a href="../index.html">~/brimbles</a></h1>
+    <p class="prompt">Stellar Hearth</p>
+  </header>
+
+  <main>
+    <article class="post">
+      <p class="post-date">2026-11-25</p>
+
+<p>Stellar Hearth is a spaceship game I'm making in Unity. You build your own ship room by room, fly it between star systems, trade cargo and live on board. The ship is a home as much as a vehicle: there's a lounge with a telly, a galley, bunks and a hydroponics bay. It's early and not playable outside my computer yet, but most of the core loop now works.</p>
+<p>The video is the game's built-in showcase playing everything in turn: flight, landing in a station hangar, docking with another ship, and a jump to another system.</p>
+<p><video controls preload="metadata" playsinline poster="../assets/images/stellar-hearth/approach.jpg" style="width:100%"><source src="../assets/video/stellar-hearth/demo.mp4" type="video/mp4"></video></p>
+<img src="../assets/images/stellar-hearth/approach.jpg" alt="Coming in to land: the hangar's force field and its three pads">
+<h3>Flying</h3>
+<p>You fly from a cockpit seat, with a chase camera if you prefer. There are main engines, boost, strafing and a space brake. Four little thruster blocks on the corners of the hull puff cold gas whenever the ship turns, nudges or stops a spin. They fire the nozzles that would actually push the ship that way.</p>
+<img src="../assets/images/stellar-hearth/cockpit.jpg" alt="The cockpit, with the flight and nav screens">
+<img src="../assets/images/stellar-hearth/rcs.jpg" alt="RCS thrusters puffing as the ship turns">
+<h3>Stations and Landing</h3>
+<p>Every system has a station, and stations are hangars you fly into through a glowing force field. Hover over a free pad, press G, and the ship touches down with its landing legs on the pad and its cargo ramp on the apron. Hulls are solid, so clipping the station stops you dead (no damage, though).</p>
+<img src="../assets/images/stellar-hearth/landed.jpg" alt="Landed on a pad, standing on its legs">
+<img src="../assets/images/stellar-hearth/apron.jpg" alt="The cargo ramp down on the apron, with the loading and sell pads">
+<h3>Trading</h3>
+<p>Cargo is physical: 1.5 m containers you carry with a grav-lifter between your cargo bay and the station's pads. Each station has a couple of cheap exports and a couple of well-paid imports, so the game is finding a good run and hauling it. A galaxy map shows where you can jump and what each station buys and sells.</p>
+<h3>Docking With Other Ships</h3>
+<p>A friendly trader parks beside every station. Fit a docking collar to your ship, come alongside, and the ship flies itself in on its thrusters: it lines up, closes in, then creeps the last few metres to contact. Docked ships sit side by side facing the same way, so that later, with friends, two docked ships can fly together. Open the hatches and walk straight aboard to use the trader's market.</p>
+<img src="../assets/images/stellar-hearth/docked.jpg" alt="Docked side by side with a trader">
+<img src="../assets/images/stellar-hearth/hatch.jpg" alt="Looking through both hatches into the other ship">
+<h3>Building the Ship</h3>
+<p>The ship is a grid of modules: cockpit, airlock, cargo bay, corridors, rooms and living quarters. You build them in place from inside or outside the ship. They cost credits, and a new room has to connect to the rest of the ship through a doorway. The living rooms all do something:</p>
+<ul>
+  <li>Hydroponics grows a crate of food every jump</li>
+  <li>The galley serves meals when you're landed at a station</li>
+  <li>The bunks save the game</li>
+  <li>Engineering cuts the fuel cost of jumps</li>
+  <li>The lounge telly shows the best trade run from where you are</li>
+</ul>
+<img src="../assets/images/stellar-hearth/lounge.jpg" alt="The lounge">
+<h3>How It's Made</h3>
+<ul>
+  <li>Unity 6 with the Universal Render Pipeline</li>
+  <li>Every ship part, the station and the containers are modelled by Python scripts in Blender. One shared style file sets the colours, trim, sizes and wear, so new parts match the rest of the ship</li>
+  <li>The universe moves around the ship rather than the other way round, so you can walk about inside while it flies</li>
+  <li>There's a lot of automated testing (about 500 tests), plus the showcase in the video, which plays each feature through the real game systems so I can watch it work</li>
+</ul>
+<h3>What's Next</h3>
+<ul>
+  <li>Other ships flying about: traffic landing at stations, and a comms channel with chatter from station control</li>
+  <li>Proper planets and nicer skies</li>
+  <li>Generators, so a big ship can power all its rooms</li>
+  <li>Eventually co-op, so friends can bring their own ships and dock together</li>
+</ul>
+    </article>
+  </main>
+
+  <footer>
+    <p><a href="../index.html">&lt; back to projects</a></p>
+  </footer>
+</body>
+</html>
