@@ -163,7 +163,7 @@
       vehicles: [{ name: 'Shuttle', tracker: 'device_tracker.demo_car_tracker', color: '#cc99cc' }] },
     nav: [
       { label: 'LCARS', path: '#main' }, { label: 'Shuttle', path: '#car', only: 'lcars' }, { label: 'Family', path: '#family', only: 'lcars' },
-      { label: 'Energy', path: '#energy', only: 'lcars' }, { label: 'Server', path: '#server', only: 'lcars' }, { label: 'Terminal', path: '#terminal' }],
+      { label: 'Energy', path: '#energy', only: 'lcars' }, { label: 'Forecast', path: '#forecast', only: 'lcars' }, { label: 'Server', path: '#server', only: 'lcars' }, { label: 'Terminal', path: '#terminal' }],
     readouts: [
       { label: 'Living room', entity: 'climate.living_room', attr: 'current_temperature', unit: '°C' },
       { label: 'Dining room', entity: 'climate.dining_room', attr: 'current_temperature', unit: '°C' },
@@ -246,7 +246,7 @@
   };
 
   // ---- page switching (nav buttons change the #hash) -------------------
-  var pages = { main: 1, car: 1, family: 1, energy: 1, server: 1, terminal: 1 };
+  var pages = { main: 1, car: 1, family: 1, energy: 1, forecast: 1, server: 1, terminal: 1 };
   function page() { var h = location.hash.replace('#', ''); return pages[h] ? h : 'main'; }
   window.tpNavigate = function (path) { window.__tpNavAt = Date.now(); window.__tpNavFrom = '#' + page(); location.hash = path; };
   ['lcars-panel-card', 'terminal-panel-card'].forEach(function (n) {
@@ -256,7 +256,7 @@
     var p = page(), kind = p === 'terminal' ? 'terminal-panel-card' : 'lcars-panel-card';
     var c = JSON.parse(JSON.stringify(cfg));
     if (p === 'terminal') { c.title = 'Home Systems Interface'; c.subtitle = 'Demo node // Link nominal'; }
-    else if (p !== 'main') { c.page = p; c.title = { car: 'Shuttle', family: 'Crew Locator', energy: 'Power Grid', server: 'Engineering' }[p]; }
+    else if (p !== 'main') { c.page = p; c.title = { car: 'Shuttle', family: 'Crew Locator', energy: 'Power Grid', forecast: 'Projections', server: 'Engineering' }[p]; }
     if (el) el.remove();
     el = document.createElement(kind); el.setConfig(c);
     if (p === 'server') { // the real page asks the server's Glances API for this list

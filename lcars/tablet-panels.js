@@ -232,6 +232,76 @@ function tpEnergyModel(cfg, day, hour, states, now, devDays) {
   };
 }
 
+// ---- Month forecast ------------------------------------------------------------
+// Per device: kWh so far this calendar month, plus its recent daily average (last 14 days, or since
+// its plug started reporting) for the rest of the month. House electricity and gas work the same way
+// from Octopus hourly data, which runs a day or two behind; "Everything else" = house - plugs.
+function tpForecastModel(cfg, day, hour, states, now) {
+  var num = function (id) { var s = id && states[id]; var v = s ? parseFloat(s.state) : NaN; return isNaN(v) ? null : v; };
+  var ms = function (x) { return typeof x.start === 'number' ? x.start : Date.parse(x.start); };
+  var HR = 36e5, DY = 864e5, nowT = now.getTime();
+  var mStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  var mEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
+  var dim = Math.round((mEnd - mStart) / DY);
+  var hmap = function (id, f) { var o = {}; (hour[id] || []).forEach(function (x) { var v = f(x); if (v != null) o[ms(x)] = v; }); return o; };
+  var chg = function (cap) { return function (x) { return x.change == null ? null : Math.min(cap, Math.max(0, x.change)); }; };
+  // so far (from the month start), last reported hour, recent kWh per day.
+  var stat = function (ser, lookDays) {
+    var keys = Object.keys(ser).map(Number).sort(function (a, b) { return a - b; });
+    if (!keys.length) return { soFar: 0, last: null, first: null, perDay: 0 };
+    // Daily rate from the hours that actually reported (a plug that was offline isn't counted as idle).
+    var last = keys[keys.length - 1], from = last + HR - lookDays * DY, soFar = 0, recent = 0, hrs = 0;
+    keys.forEach(function (t) { if (t >= mStart) soFar += ser[t]; if (t >= from) { recent += ser[t]; hrs++; } });
+    return { soFar: soFar, last: last, first: keys[0], perDay: hrs >= 6 ? recent / hrs * 24 : 0 };
+  };
+  // Days of the month still to come after the series' last reported hour.
+  var left = function (last) { var t = last == null ? Math.max(mStart, nowT) : Math.max(mStart, last + HR); return Math.max(0, (mEnd - t) / DY); };
+
+  var rateE = num(cfg.elec.rate), rateG = num(cfg.gas.rate);
+  if (rateE == null) rateE = 0.28;
+  if (rateG == null) rateG = 0.07;
+  var stE = num(cfg.elec.standing) || 0, stG = num(cfg.gas.standing) || 0;
+
+  var houseE = hmap(cfg.elec.kwh, chg(1e9)), houseG = hmap(cfg.gas.kwh, chg(1e9));
+  var hE = stat(houseE, 14), hG = stat(houseG, 14);
+  var devices = [], plugsInHouse = 0, plugsAfter = 0, plugsProj = 0;
+  (cfg.devices || []).forEach(function (d) {
+    var cap = d.max_kw || 10;
+    var ser = d.energy ? hmap(d.energy, chg(cap))
+      : hmap(d.power, function (x) { return x.mean == null ? null : Math.min(cap, Math.max(0, x.mean * (d.kw ? 1 : 0.001))); });
+    var s = stat(ser, 14);
+    Object.keys(ser).forEach(function (t) {
+      if (+t < mStart) return;
+      if (houseE[t] != null) plugsInHouse += ser[t];
+      else if (hE.last == null || +t > hE.last) plugsAfter += ser[t];   // used since Octopus last reported
+    });
+    var proj = s.soFar + s.perDay * left(s.last);
+    plugsProj += proj;
+    devices.push({ name: d.name, color: d.color, soFar: s.soFar, proj: proj, perDay: s.perDay, cost: s.soFar * rateE, projCost: proj * rateE,
+      since: s.first != null && s.first > mStart + DY && s.first > nowT - 14 * DY ? s.first : null });   // plug only recently reporting
+  });
+  var houseProj = hE.soFar + hE.perDay * left(hE.last);
+  var restSoFar = Math.max(0, hE.soFar - plugsInHouse), restProj = Math.max(restSoFar, houseProj - plugsProj);
+  devices.push({ name: 'Everything else', color: '#777', rest: true, soFar: restSoFar, proj: restProj, perDay: null,
+    cost: restSoFar * rateE, projCost: restProj * rateE, asOf: hE.last == null ? null : hE.last + HR });
+  devices.sort(function (a, b) { return b.projCost - a.projCost; });
+
+  var gasProj = hG.soFar + hG.perDay * left(hG.last);
+  var elapsed = Math.min(dim, Math.max(0, (nowT - mStart) / DY));
+  var standing = (stE + stG) * dim, standingSoFar = (stE + stG) * Math.ceil(elapsed);
+  var elecProjCost = Math.max(houseProj, plugsProj) * rateE, gasProjCost = gasProj * rateG;
+  return {
+    month: now.getMonth(), year: now.getFullYear(), dim: dim, daysLeft: (mEnd - nowT) / DY, elapsed: elapsed,
+    devices: devices, rateE: rateE, rateG: rateG,
+    gas: { soFar: hG.soFar, proj: gasProj, cost: hG.soFar * rateG, projCost: gasProjCost, perDay: hG.perDay, asOf: hG.last == null ? null : hG.last + HR },
+    houseAsOf: hE.last == null ? null : hE.last + HR,
+    standing: standing, standingSoFar: standingSoFar, elecProjCost: elecProjCost,
+    total: elecProjCost + gasProjCost + standing,
+    // Known spend so far: Octopus electricity + plug use since then + Octopus gas + standing charges.
+    soFar: (hE.soFar + plugsAfter) * rateE + hG.soFar * rateG + standingSoFar,
+  };
+}
+
 // ---- Sound: everything is synthesised with Web Audio, no sound files ------
 var tpAudio = {
   ctx: null,
@@ -763,6 +833,8 @@ button:active { filter:brightness(1.35); }
 .bars .k { color:#cc99cc; white-space:nowrap; } .bars .v { color:#ffcc66; text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .mbar { display:block; height:14px; background:#262626; position:relative; }
 .mbar i { position:absolute; top:0; bottom:0; left:0; }
+.fc .mbar { display:flex; } .fc .mbar i { position:static; display:block; height:100%; }
+.bars .v .dim { color:#888; } .bars .k em { color:#ffcc66; font-style:normal; }
 .ctr { display:grid; grid-template-columns:1fr auto auto; gap:2px 14px; font-size:17px; }
 .ctr .cn { color:#ff9c00; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 .ctr .cv { color:#ffcc66; text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
@@ -1069,6 +1141,8 @@ class LcarsPanelCard extends TabletPanelBase {
       this._serverPage().forEach(function (sec, si) { (sec.column === 2 ? right : left).push(secHtml(sec, si + 1)); });
     } else if (c.page === 'energy') {
       this._energyPage().forEach(function (sec, si) { (sec.column === 2 ? right : left).push(secHtml(sec, si + 1)); });
+    } else if (c.page === 'forecast') {
+      this._forecastPage().forEach(function (sec, si) { (sec.column === 2 ? right : left).push(secHtml(sec, si + 1)); });
     } else if (c.page === 'car') {
       var cp = this._carPage();
       cp.forEach(function (sec, si) { (sec.column === 2 ? right : left).push(secHtml(sec, si + 1)); });
@@ -1207,12 +1281,15 @@ class LcarsPanelCard extends TabletPanelBase {
   //   so "today" is the Home Mini live total when it reports, otherwise a model (see tpEnergyModel).
   _energyIds() {
     var e = this._config.energy;
-    if (!e || this._config.page !== 'energy') return [];
+    if (!e || !this._enPage()) return [];
     var ids = [e.outdoor];
     ['elec', 'gas'].forEach(function (f) { var x = e[f] || {}; ids.push(x.rate, x.standing, x.live_kwh, x.live_cost, x.demand); });
     (e.devices || []).forEach(function (d) { ids.push(d.power, d.energy); });
     return ids.filter(Boolean);
   }
+
+  // Pages that need the energy history (the energy page and the month forecast).
+  _enPage() { var p = this._config && this._config.page; return p === 'energy' || p === 'forecast'; }
 
   // Devices window in days (1, 7 or 30), remembered per tablet.
   _enDays() {
@@ -1238,7 +1315,7 @@ class LcarsPanelCard extends TabletPanelBase {
     Promise.all([q(dayIds, 'day', 62), q(hourIds, 'hour', 31)])
       .then(function (r) { self._en = { day: r[0] || {}, hour: r[1] || {}, at: Date.now() }; })
       .catch(function () { self._en = { day: (self._en || {}).day || {}, hour: (self._en || {}).hour || {}, at: Date.now(), err: true }; })
-      .then(function () { self._enBusy = false; if (self._config.page === 'energy') self._render(); });
+      .then(function () { self._enBusy = false; if (self._enPage()) self._render(); });
   }
 
   _energyPage() {
@@ -1314,6 +1391,71 @@ class LcarsPanelCard extends TabletPanelBase {
       { title: 'Daily cost · 30 days', html: chart, color: LC[5] },
       { title: 'Devices · ' + span.replace('Last ', '').toLowerCase(), html: dev, color: LC[1], column: 2 },
       { title: 'Spikes · 7 days', html: spikes + gasSp + (this._en.err ? kv([['Note', 'HISTORY MAY BE STALE', 'warn']]) : ''), color: LC[6], column: 2 },
+    ];
+  }
+
+  // ---- month forecast (page: forecast; same history as the energy page) -------
+  _forecastPage() {
+    var e = this._config.energy, self = this;
+    if (!this._en) {
+      return [{ title: 'Forecast', color: LC[0], html: '<div class="kv"><span class="k">Status</span><span class="v">LOADING HISTORY...</span></div>' }];
+    }
+    var states = {};
+    this._energyIds().forEach(function (id) { if (self._st(id)) states[id] = self._st(id); });
+    var now = new Date();
+    var f = tpForecastModel(e, this._en.day, this._en.hour, states, now);
+    var MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    var DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    var gbp = function (v) { return v == null || isNaN(v) ? '--' : '£' + (v >= 100 ? Math.round(v) : v.toFixed(2)); };
+    var kwh = function (v) { return v == null ? '--' : (v >= 100 ? Math.round(v) : v.toFixed(1)) + ' KWH'; };
+    var when = function (ms) { var d = new Date(ms); return DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + pad2(d.getHours()) + ':00'; };
+    var kv = function (rows) {
+      return '<div class="kv">' + rows.map(function (r) {
+        return '<span class="k">' + esc(r[0]) + '</span><span class="v' + (r[2] ? ' ' + r[2] : '') + '">' + esc(r[1]) + '</span>';
+      }).join('') + '</div>';
+    };
+    var endLabel = f.dim + ' ' + MON[f.month];
+
+    // Summary
+    var sum = '<div class="entop"><span class="big">' + gbp(f.total) + '</span><span class="ensrc">PROJECTED TO ' + endLabel + '</span></div>' +
+      kv([['Spent so far', gbp(f.soFar)],
+        ['Days left', f.daysLeft.toFixed(1) + ' OF ' + f.dim],
+        ['Electricity (proj.)', gbp(f.elecProjCost)],
+        ['Gas (proj.)', gbp(f.gas.projCost)],
+        ['Standing charges', gbp(f.standing)],
+        ['Unit rates', '£' + f.rateE.toFixed(3) + ' ELEC · £' + f.rateG.toFixed(3) + ' GAS', 'dim']]);
+    var notes = [];
+    if (f.houseAsOf) notes.push(['Octopus electricity to', when(f.houseAsOf), 'dim']);
+    if (f.gas.asOf) notes.push(['Octopus gas to', when(f.gas.asOf), 'dim']);
+    if (this._en.err) notes.push(['Note', 'HISTORY MAY BE STALE', 'warn']);
+    sum += kv(notes);
+
+    // Devices: solid = spent so far, faded = still to come; value = so far -> projected.
+    var rows = f.devices.concat([{ name: 'Gas heating + hot water', color: '#ff9c00', soFar: f.gas.soFar, proj: f.gas.proj, cost: f.gas.cost, projCost: f.gas.projCost }]);
+    rows.sort(function (a, b) { return b.projCost - a.projCost; });
+    var mx = 0; rows.forEach(function (r) { mx = Math.max(mx, r.projCost); });
+    var dev = '<div class="bars fc">' + rows.map(function (r) {
+      var a = mx ? r.cost / mx * 100 : 0, b = mx ? Math.max(0, r.projCost - r.cost) / mx * 100 : 0;
+      return '<span class="k">' + esc(r.name) + (r.since ? ' <em>*</em>' : '') + '</span>' +
+        '<span class="mbar"><i style="width:' + Math.min(100, a) + '%;background:' + (r.color || '#99ccff') + '"></i>' +
+        '<i style="width:' + Math.min(100 - a, b) + '%;background:' + (r.color || '#99ccff') + ';opacity:.35"></i></span>' +
+        '<span class="v"><span class="dim">' + gbp(r.cost) + ' → </span>' + gbp(r.projCost) + '</span>';
+    }).join('') + '</div>';
+    var since = f.devices.filter(function (r) { return r.since; });
+    var foot = [['Bars', 'SOLID = SO FAR · FADED = TO COME', 'dim']];
+    if (since.length) foot.push(['* Reporting since', since.map(function (r) { var d = new Date(r.since); return d.getDate() + ' ' + MON[d.getMonth()]; })[0] + (since.length > 1 ? ' (AND OTHERS)' : ''), 'dim']);
+    dev += kv(foot);
+
+    // Daily rate behind each projection.
+    var rate = kv(rows.filter(function (r) { return r.perDay != null || r.name.indexOf('Gas') === 0; }).slice(0, 8).map(function (r) {
+      var pd = r.perDay != null ? r.perDay : f.gas.perDay, rr = r.name.indexOf('Gas') === 0 ? f.rateG : f.rateE;
+      return [r.name, kwh(pd) + ' · ' + gbp(pd * rr) + ' / DAY'];
+    }));
+
+    return [
+      { title: 'Month · ' + MON[f.month] + ' ' + f.year, html: sum, color: LC[3] },
+      { title: 'Recent daily use', html: rate, color: LC[5] },
+      { title: 'Devices · projected to ' + endLabel.toLowerCase(), html: dev, color: LC[1], column: 2 },
     ];
   }
 
@@ -1434,7 +1576,7 @@ class LcarsPanelCard extends TabletPanelBase {
   _onTick() {
     var root = this.shadowRoot, self = this;
     if (this._config && this._config.page === 'server' && (!this._ctr || Date.now() - this._ctr.at > 15000)) this._fetchContainers();
-    if (this._config && this._config.page === 'energy' && this._hass && (!this._en || Date.now() - this._en.at > 600000)) this._fetchEnergy();
+    if (this._config && this._enPage() && this._hass && (!this._en || Date.now() - this._en.at > 600000)) this._fetchEnergy();
     if (this._config && this._config.page === 'car' && this._hass && (!this._cc || Date.now() - this._cc.at > 600000)) this._fetchCarCost();
     // Map made while hidden: resize and refit once it is actually on screen.
     if (this._map && this._mapBox) {

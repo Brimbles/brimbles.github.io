@@ -23,12 +23,15 @@ The buttons down the left side switch between pages.
 - Car: charge level, charge limit, defrost, departure times, tyres and locks, and how much home charging has cost since payday
 - Family: a map showing where everyone is, how far from home and whether they're heading back
 - Energy: today's cost (estimated, because the meter data arrives a day or two late), 30 days of electricity and gas, which devices use the most over the last day, week or month, and the biggest spikes
+- Forecast: what each device has cost so far this month and what it's on course to cost by the end of it, based on its recent daily use
 - Server: CPU, memory, disks and Docker containers on the home server
 - Terminal: the same controls in a green-screen terminal style
 
 ![The car page](assets/images/lcars-dashboard/car.png)
 
 ![The energy page, with daily costs and the devices using the most](assets/images/lcars-dashboard/energy.png)
+
+![The forecast page, with each device's cost so far this month and projected to the end of it](assets/images/lcars-dashboard/forecast.png)
 
 ![The family map](assets/images/lcars-dashboard/family.png)
 
