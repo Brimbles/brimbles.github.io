@@ -283,6 +283,62 @@ function tpForecastModel(cfg, day, hour, states, now, monthDays) {
   };
 }
 
+// ---- A past calendar month: same calculation, compared with Octopus -------------
+// hour: hourly stats covering [start, end); mon: monthly stats (Octopus kWh and cost).
+// Devices are costed at today's unit rates, like the forecast; "Octopus" is the cost Octopus
+// recorded for that month's units. Standing charges use today's daily rate for both.
+function tpMonthModel(cfg, hour, mon, states, start, end) {
+  var num = function (id) { var s = id && states[id]; var v = s ? parseFloat(s.state) : NaN; return isNaN(v) ? null : v; };
+  var ms = function (x) { return typeof x.start === 'number' ? x.start : Date.parse(x.start); };
+  var DY = 864e5, inM = function (t) { return t >= start && t < end; };
+  var days = Math.round((end - start) / DY);
+  var rateE = num(cfg.elec.rate), rateG = num(cfg.gas.rate);
+  if (rateE == null) rateE = 0.28;
+  if (rateG == null) rateG = 0.07;
+  var stE = num(cfg.elec.standing) || 0, stG = num(cfg.gas.standing) || 0;
+  var series = function (id, f) { var o = {}; (hour[id] || []).forEach(function (x) { var t = ms(x), v = f(x); if (v != null && inM(t)) o[t] = v; }); return o; };
+  var chg = function (cap) { return function (x) { return x.change == null ? null : Math.min(cap, Math.max(0, x.change)); }; };
+  var total = function (o) { var s = 0; Object.keys(o).forEach(function (t) { s += o[t]; }); return s; };
+  var first = function (o) { var k = Object.keys(o).map(Number); return k.length ? Math.min.apply(null, k) : null; };
+  var mval = function (id) {   // Octopus monthly figure for this month
+    var v = null; (mon[id] || []).forEach(function (x) { if (inM(ms(x)) && x.change != null) v = (v || 0) + x.change; }); return v;
+  };
+
+  var houseE = series(cfg.elec.kwh, chg(1e9)), houseG = series(cfg.gas.kwh, chg(1e9));
+  var houseKwh = total(houseE), gasKwh = total(houseG), houseFirst = first(houseE);
+  var devices = [], plugsInHouse = 0, plugs = 0;
+  (cfg.devices || []).forEach(function (d) {
+    var cap = d.max_kw || 10;
+    var ser = d.energy ? series(d.energy, chg(cap))
+      : series(d.power, function (x) { return x.mean == null ? null : Math.min(cap, Math.max(0, x.mean * (d.kw ? 1 : 0.001))); });
+    var k = Object.keys(ser);
+    if (!k.length) { devices.push({ name: d.name, color: d.color, kwh: null, cost: null }); return; }
+    var kwh = total(ser);
+    k.forEach(function (t) { if (houseE[t] != null) plugsInHouse += ser[t]; });
+    plugs += kwh;
+    var f0 = first(ser);
+    devices.push({ name: d.name, color: d.color, kwh: kwh, cost: kwh * rateE, since: f0 > start + DY ? f0 : null });
+  });
+  var rest = Object.keys(houseE).length ? Math.max(0, houseKwh - plugsInHouse) : null;
+  devices.push({ name: 'Everything else', color: '#777', kwh: rest, cost: rest == null ? null : rest * rateE });
+  devices.push({ name: 'Gas heating + hot water', color: '#ff9c00', kwh: Object.keys(houseG).length ? gasKwh : null,
+    cost: Object.keys(houseG).length ? gasKwh * rateG : null });
+  devices.sort(function (a, b) { return (b.cost || 0) - (a.cost || 0); });
+
+  var standing = (stE + stG) * days;
+  var calcE = Math.max(houseKwh, plugs) * rateE, calcG = gasKwh * rateG;
+  var octE = mval(cfg.elec.cost), octG = mval(cfg.gas.cost), octEk = mval(cfg.elec.kwh), octGk = mval(cfg.gas.kwh);
+  var octTotal = octE == null && octG == null ? null : (octE || 0) + (octG || 0) + standing;
+  var calcTotal = calcE + calcG + standing;
+  return {
+    start: start, end: end, days: days, devices: devices, rateE: rateE, rateG: rateG, standing: standing,
+    calc: { elec: calcE, gas: calcG, total: calcTotal },
+    octopus: { elec: octE, gas: octG, total: octTotal, rateE: octE != null && octEk ? octE / octEk : null, rateG: octG != null && octGk ? octG / octGk : null },
+    diff: octTotal == null ? null : calcTotal - octTotal,
+    cover: Object.keys(houseE).length / (days * 24), houseFrom: houseFirst != null && houseFirst > start + DY ? houseFirst : null,
+  };
+}
+
 // ---- Sound: everything is synthesised with Web Audio, no sound files ------
 var tpAudio = {
   ctx: null,
@@ -815,6 +871,9 @@ button:active { filter:brightness(1.35); }
 .mbar { display:block; height:14px; background:#262626; position:relative; }
 .mbar i { position:absolute; top:0; bottom:0; left:0; }
 .bars .v .dim { color:#888; } .bars .k em { color:#ffcc66; font-style:normal; }
+.cmp { display:grid; grid-template-columns:1fr auto auto; gap:3px 18px; font-size:18px; margin:4px 0 8px; }
+.cmp .h { color:#888; font-size:14px; text-align:right; } .cmp .k { color:#cc99cc; } .cmp .k.t { color:#ff9c00; }
+.cmp .v { color:#ffcc66; text-align:right; font-variant-numeric:tabular-nums; }
 .ctr { display:grid; grid-template-columns:1fr auto auto; gap:2px 14px; font-size:17px; }
 .ctr .cn { color:#ff9c00; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 .ctr .cv { color:#ffcc66; text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
@@ -988,6 +1047,14 @@ class LcarsPanelCard extends TabletPanelBase {
 
   _ui(what) {
     if (what.indexOf('car:') === 0) { this._carAction(what.split(':')[1], what.split(':')[2]); return; }
+    if (what.indexOf('fc:m:') === 0) {   // forecast page: 'now' or a past month's start time
+      var sel = what.slice(5);
+      this._fcSel = sel === 'now' ? null : +sel;
+      if (this._fcSel) this._fcFetchMonth(this._fcSel);
+      if (this._audioOn) tpAudio.seq(LCARS_SFX.tap, 'triangle', 0.2);
+      this._render();
+      return;
+    }
     if (what.indexOf('en:days:') === 0) {
       var nd = +what.split(':')[2];
       if ([1, 7, 30].indexOf(nd) < 0 || nd === this._enDays()) return;
@@ -1281,6 +1348,47 @@ class LcarsPanelCard extends TabletPanelBase {
     return this._enDaysV;
   }
 
+  // Forecast page: which past months Octopus has figures for (up to 6), checked hourly.
+  _fcFetchMonths() {
+    var e = this._config.energy, self = this;
+    if (!e || this._fcMonBusy || !this._hass || !this._hass.callWS) return;
+    this._fcMonBusy = true;
+    var now = new Date(), from = new Date(now.getFullYear(), now.getMonth() - 6, 1), thisM = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    this._hass.callWS({ type: 'recorder/statistics_during_period', start_time: from.toISOString(), end_time: new Date(thisM).toISOString(),
+      statistic_ids: [e.elec.cost, e.gas.cost], period: 'month', types: ['change'] })
+      .then(function (r) {
+        var seen = {};
+        [e.elec.cost, e.gas.cost].forEach(function (id) {
+          ((r || {})[id] || []).forEach(function (x) {
+            var t = typeof x.start === 'number' ? x.start : Date.parse(x.start), d = new Date(t + 12 * 36e5);   // noon: dodge DST edges
+            if (x.change) seen[d.getFullYear() + '-' + (d.getMonth() + 1)] = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+          });
+        });
+        self._fcMon = { list: Object.keys(seen).map(function (k) { return seen[k]; }).sort(function (a, b) { return b - a; }), at: Date.now() };
+      })
+      .catch(function () { self._fcMon = { list: (self._fcMon || {}).list || [], at: Date.now() }; })
+      .then(function () { self._fcMonBusy = false; if (self._config.page === 'forecast') self._render(); });
+  }
+
+  // Forecast page: the hourly and monthly history for one past month (kept for an hour).
+  _fcFetchMonth(start) {
+    var e = this._config.energy, self = this;
+    this._fcData = this._fcData || {};
+    var have = this._fcData[start];
+    if (!e || (have && (have.busy || Date.now() - have.at < 36e5)) || !this._hass || !this._hass.callWS) return;
+    this._fcData[start] = { busy: true, at: 0, hour: have && have.hour, mon: have && have.mon };
+    var d = new Date(start), end = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
+    var hourIds = [e.elec.kwh, e.gas.kwh].concat((e.devices || []).map(function (x) { return x.energy || x.power; }));
+    var q = function (ids, period) {
+      return self._hass.callWS({ type: 'recorder/statistics_during_period', start_time: new Date(start).toISOString(), end_time: new Date(end).toISOString(),
+        statistic_ids: ids, period: period, types: ['change', 'mean'] });
+    };
+    Promise.all([q(hourIds, 'hour'), q([e.elec.kwh, e.elec.cost, e.gas.kwh, e.gas.cost], 'month')])
+      .then(function (r) { self._fcData[start] = { hour: r[0] || {}, mon: r[1] || {}, at: Date.now() }; })
+      .catch(function () { self._fcData[start] = { hour: {}, mon: {}, at: Date.now(), err: true }; })
+      .then(function () { if (self._config.page === 'forecast') self._render(); });
+  }
+
   _fetchEnergy() {
     var e = this._config.energy, self = this;
     if (!e || this._enBusy || !this._hass || !this._hass.callWS) return;
@@ -1382,8 +1490,8 @@ class LcarsPanelCard extends TabletPanelBase {
     }
     var states = {};
     this._energyIds().forEach(function (id) { if (self._st(id)) states[id] = self._st(id); });
-    var f = tpForecastModel(e, this._en.day, this._en.hour, states, new Date());
     var MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     var DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
     var gbp = function (v) { return v == null || isNaN(v) ? '--' : '£' + (v >= 100 ? Math.round(v) : v.toFixed(2)); };
     var kwh = function (v) { return v == null ? '--' : (v >= 100 ? Math.round(v) : v.toFixed(1)) + ' KWH'; };
@@ -1393,6 +1501,64 @@ class LcarsPanelCard extends TabletPanelBase {
         return '<span class="k">' + esc(r[0]) + '</span><span class="v' + (r[2] ? ' ' + r[2] : '') + '">' + esc(r[1]) + '</span>';
       }).join('') + '</div>';
     };
+    var bars = function (list, val) {
+      var mx = 0; list.forEach(function (r) { mx = Math.max(mx, r.cost || 0); });
+      return '<div class="bars">' + list.map(function (r) {
+        var pct = mx && r.cost != null ? r.cost / mx * 100 : 0;
+        return '<span class="k">' + esc(r.name) + (r.since ? ' <em>*</em>' : '') + '</span>' +
+          '<span class="mbar"><i style="width:' + Math.min(100, pct) + '%;background:' + (r.color || '#99ccff') + '"></i></span>' +
+          '<span class="v">' + (r.cost == null ? '<span class="dim">NO DATA</span>' : val(r)) + '</span>';
+      }).join('') + '</div>';
+    };
+    var sinceNote = function (list) {
+      var s = list.filter(function (r) { return r.since; });
+      if (!s.length) return '';
+      var d0 = new Date(Math.min.apply(null, s.map(function (r) { return r.since; })));
+      return kv([['* Fewer readings', 'ONLY SINCE ' + d0.getDate() + ' ' + MON[d0.getMonth()], 'dim']]);
+    };
+
+    // Month buttons: now, then past months Octopus has figures for.
+    var past = (this._fcMon && this._fcMon.list) || [], sel = this._fcSel && past.indexOf(this._fcSel) >= 0 ? this._fcSel : null;
+    var chip = function (label, ui, on) {
+      return '<button class="b' + (on ? '' : ' off') + '" data-ui="fc:m:' + ui + '" style="background:' + LC[3] + '"><span class="l">' + label + '</span></button>';
+    };
+    var chips = past.length ? '<div class="chips">' + chip('Now', 'now', !sel) +
+      past.slice(0, 5).map(function (t) { return chip(MON[new Date(t).getMonth()], t, sel === t); }).join('') + '</div>' : '';
+
+    if (sel) {
+      var pd = this._fcData && this._fcData[sel];
+      if (!pd || !pd.hour) {
+        if (!pd) this._fcFetchMonth(sel);
+        return [{ title: MONTHS[new Date(sel).getMonth()] + ' ' + new Date(sel).getFullYear(), color: LC[3],
+          html: chips + kv([['Status', 'LOADING HISTORY...']]) }];
+      }
+      var dd = new Date(sel), endT = new Date(dd.getFullYear(), dd.getMonth() + 1, 1).getTime();
+      var p = tpMonthModel(e, pd.hour, pd.mon, states, sel, endT);
+      var diffTxt = p.diff == null ? '--' : (p.diff >= 0 ? '+' : '−') + gbp(Math.abs(p.diff)) +
+        (p.octopus.total ? ' (' + (p.diff >= 0 ? '+' : '−') + Math.abs(p.diff / p.octopus.total * 100).toFixed(1) + '%)' : '');
+      var cmp = '<div class="cmp"><span></span><span class="h">CALCULATED</span><span class="h">OCTOPUS</span>' +
+        [['Electricity', p.calc.elec, p.octopus.elec], ['Gas', p.calc.gas, p.octopus.gas], ['Standing charges', p.standing, p.standing],
+          ['Total', p.calc.total, p.octopus.total]].map(function (r) {
+          return '<span class="k' + (r[0] === 'Total' ? ' t' : '') + '">' + esc(r[0]) + '</span><span class="v">' + gbp(r[1]) + '</span><span class="v">' + gbp(r[2]) + '</span>';
+        }).join('') + '</div>';
+      var rows = [
+        ['Difference', diffTxt, p.diff == null ? '' : Math.abs(p.diff) > 5 ? 'warn' : 'hi'],
+        ['Unit rates used', '£' + p.rateE.toFixed(3) + ' ELEC · £' + p.rateG.toFixed(3) + ' GAS', 'dim'],
+        ['Octopus average', (p.octopus.rateE ? '£' + p.octopus.rateE.toFixed(3) : '--') + ' ELEC · ' + (p.octopus.rateG ? '£' + p.octopus.rateG.toFixed(3) : '--') + ' GAS', 'dim'],
+        ['Standing charges at', "TODAY'S RATE", 'dim']];
+      if (p.houseFrom) rows.push(['Octopus data from', when(p.houseFrom), 'warn']);
+      else if (p.cover < 0.97) rows.push(['Octopus hours', Math.round(p.cover * 100) + '% OF MONTH', 'warn']);
+      if (pd.err) rows.push(['Note', 'HISTORY MAY BE INCOMPLETE', 'warn']);
+      var title = MONTHS[dd.getMonth()] + ' ' + dd.getFullYear();
+      return [
+        { title: title + ' · ' + p.days + ' days', html: chips + '<div class="entop"><span class="big">' + gbp(p.calc.total) +
+          '</span><span class="ensrc">CALCULATED · OCTOPUS ' + gbp(p.octopus.total) + '</span></div>' + cmp + kv(rows), color: LC[3] },
+        { title: 'Devices · ' + title.toLowerCase(), color: LC[1], column: 2,
+          html: bars(p.devices, function (r) { return '<span class="dim">' + kwh(r.kwh) + ' · </span>' + gbp(r.cost); }) + sinceNote(p.devices) },
+      ];
+    }
+
+    var f = tpForecastModel(e, this._en.day, this._en.hour, states, new Date());
 
     // Summary
     var notes = [['Electricity', gbp(f.elecCost)], ['Gas', gbp(f.gasCost)], ['Standing charges', gbp(f.standing)],
@@ -1402,22 +1568,10 @@ class LcarsPanelCard extends TabletPanelBase {
     if (f.houseAsOf) notes.push(['Octopus electricity to', when(f.houseAsOf), 'dim']);
     if (f.gasAsOf) notes.push(['Octopus gas to', when(f.gasAsOf), 'dim']);
     if (this._en.err) notes.push(['Note', 'HISTORY MAY BE STALE', 'warn']);
-    var sum = '<div class="entop"><span class="big">' + gbp(f.total) + '</span><span class="ensrc">PER MONTH AT CURRENT USE</span></div>' + kv(notes);
+    var sum = chips + '<div class="entop"><span class="big">' + gbp(f.total) + '</span><span class="ensrc">PER MONTH AT CURRENT USE</span></div>' + kv(notes);
 
     // Devices: monthly cost, with the daily use behind it.
-    var mx = 0; f.devices.forEach(function (r) { mx = Math.max(mx, r.cost || 0); });
-    var dev = '<div class="bars">' + f.devices.map(function (r) {
-      var pct = mx && r.cost != null ? r.cost / mx * 100 : 0;
-      return '<span class="k">' + esc(r.name) + (r.since ? ' <em>*</em>' : '') + '</span>' +
-        '<span class="mbar"><i style="width:' + Math.min(100, pct) + '%;background:' + (r.color || '#99ccff') + '"></i></span>' +
-        '<span class="v">' + (r.cost == null ? '<span class="dim">NO DATA</span>' :
-          '<span class="dim">' + kwh(r.perDay) + '/DAY · </span>' + gbp(r.cost)) + '</span>';
-    }).join('') + '</div>';
-    var since = f.devices.filter(function (r) { return r.since; });
-    if (since.length) {
-      var d0 = new Date(Math.min.apply(null, since.map(function (r) { return r.since; })));
-      dev += kv([['* Fewer readings', 'ONLY SINCE ' + d0.getDate() + ' ' + MON[d0.getMonth()], 'dim']]);
-    }
+    var dev = bars(f.devices, function (r) { return '<span class="dim">' + kwh(r.perDay) + '/DAY · </span>' + gbp(r.cost); }) + sinceNote(f.devices);
 
     return [
       { title: 'Monthly cost · ' + f.days + ' days', html: sum, color: LC[3] },
@@ -1543,6 +1697,7 @@ class LcarsPanelCard extends TabletPanelBase {
     var root = this.shadowRoot, self = this;
     if (this._config && this._config.page === 'server' && (!this._ctr || Date.now() - this._ctr.at > 15000)) this._fetchContainers();
     if (this._config && this._enPage() && this._hass && (!this._en || Date.now() - this._en.at > 600000)) this._fetchEnergy();
+    if (this._config && this._config.page === 'forecast' && this._hass && (!this._fcMon || Date.now() - this._fcMon.at > 36e5)) this._fcFetchMonths();
     if (this._config && this._config.page === 'car' && this._hass && (!this._cc || Date.now() - this._cc.at > 600000)) this._fetchCarCost();
     // Map made while hidden: resize and refit once it is actually on screen.
     if (this._map && this._mapBox) {

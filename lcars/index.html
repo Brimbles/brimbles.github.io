@@ -48,11 +48,14 @@
     var day = Math.max(5, 80 - 4.5 * T); return gasProfile[h] / 20.2 * day * (0.85 + rnd(i * 11) * 0.3); }
 
   var RATE_E = 0.2786, RATE_G = 0.0791;
+  // Unit rates were a little lower in earlier months, so past months differ from today's prices.
+  function monthsAgo(t) { var a = new Date(), b = new Date(t); return (a.getFullYear() - b.getFullYear()) * 12 + a.getMonth() - b.getMonth(); }
+  function rateAt(base, t) { return base * (1 - 0.015 * Math.min(6, monthsAgo(t))); }
   var series = {
     'demo:elec_kwh': function (t) { return { change: elecAt(t) }; },
-    'demo:elec_cost': function (t) { return { change: elecAt(t) * RATE_E }; },
+    'demo:elec_cost': function (t) { return { change: elecAt(t) * rateAt(RATE_E, t) }; },
     'demo:gas_kwh': function (t) { return { change: gasAt(t) }; },
-    'demo:gas_cost': function (t) { return { change: gasAt(t) * RATE_G }; },
+    'demo:gas_cost': function (t) { return { change: gasAt(t) * rateAt(RATE_G, t) }; },
     'sensor.demo_outdoor': function (t) { return { mean: tempAt(t) }; },
     'sensor.demo_charger_power': function (t) { return { mean: devAt('car', t) }; },
     'sensor.washer_energy': function (t) { return { change: devAt('wash', t) }; },
@@ -61,8 +64,21 @@
   };
   // Answers recorder/statistics_during_period from the series above.
   function stats(m) {
-    var hourly = m.period !== 'day', out = {};
-    var start = Date.parse(m.start_time), end = Date.now();
+    var hourly = m.period === 'hour', out = {};
+    var start = Date.parse(m.start_time), end = Math.min(Date.now(), m.end_time ? Date.parse(m.end_time) : Infinity);
+    if (m.period === 'month') {   // calendar months, summed from the hourly series
+      m.statistic_ids.forEach(function (id) {
+        var f = series[id]; if (!f) return;
+        var rows = [], d = new Date(start); d.setDate(1); d.setHours(0, 0, 0, 0);
+        for (; d.getTime() < end; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+          var m0 = d.getTime(), m1 = Math.min(end, new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime()), ch = 0;
+          for (var t = m0; t + HOUR <= m1; t += HOUR) { var v = f(t); if (v.change != null) ch += v.change; }
+          rows.push({ start: m0, end: m1, change: ch });
+        }
+        out[id] = rows;
+      });
+      return out;
+    }
     m.statistic_ids.forEach(function (id) {
       var f = series[id]; if (!f) return;
       var rows = [];
