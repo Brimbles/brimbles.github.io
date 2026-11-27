@@ -25,6 +25,7 @@ The buttons down the left side switch between pages.
 - Energy: today's cost (estimated, because the meter data arrives a day or two late), 30 days of electricity and gas, which devices use the most over the last day, week or month, and the biggest spikes
 - Forecast: what each device would cost over a whole month at its recent rate of use, and for past months what each device actually used, with the total set against what Octopus charged
 - Heating: one room at a time, the temperature it actually reached against the target it was set to, when its radiator valve was open, and an estimate of what its gas cost, so it's easy to see which rooms are worth turning down
+- Office: the office's electric heater, with boost buttons for 18–22°C over 1, 2 or 3 hours, its daily schedule, a graph of the room temperature against the heater's target and the desk's power use, and the desk socket
 - Server: CPU, memory, disks and Docker containers on the home server
 - Terminal: the same controls in a green-screen terminal style
 
@@ -35,6 +36,8 @@ The buttons down the left side switch between pages.
 ![The forecast page, with what each device costs per month at its recent rate of use](assets/images/lcars-dashboard/forecast.png)
 
 ![The heating page, with a room's temperature against its target and what each room's heating costs](assets/images/lcars-dashboard/heating.png)
+
+![The office page, with boost buttons, the schedule and a graph of temperature and desk power](assets/images/lcars-dashboard/office.png)
 
 ![The family map](assets/images/lcars-dashboard/family.png)
 

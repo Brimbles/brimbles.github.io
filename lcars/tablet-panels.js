@@ -596,7 +596,7 @@ class TabletPanelBase extends HTMLElement {
     var ids = [];
     (this._config.readouts || []).forEach(function (r) { ids.push(r.entity); });
     this._items.forEach(function (it) { if (it.entity) ids.push(it.entity); if (it.timer) ids.push(it.timer); });
-    ids = ids.concat(this._carIds(), this._serverIds ? this._serverIds() : [], this._energyIds ? this._energyIds() : [], this._heatIds ? this._heatIds() : []);
+    ids = ids.concat(this._carIds(), this._serverIds ? this._serverIds() : [], this._energyIds ? this._energyIds() : [], this._heatIds ? this._heatIds() : [], this._ofIds ? this._ofIds() : []);
     if (this._config.page === 'family' && this._config.family) {
       (this._config.family.people || []).forEach(function (p) {
         ids.push(p.person, 'sensor.' + p.prefix + '_distance', 'sensor.' + p.prefix + '_direction_of_travel', p.battery, p.alert, p.trip);
@@ -1135,6 +1135,7 @@ class LcarsPanelCard extends TabletPanelBase {
       this._render();
       return;
     }
+    if (what.indexOf('of:') === 0) { this._ofUi(what); return; }
     if (what.indexOf('ht:') === 0) {   // heating page: ht:room:<i> or ht:days:<n>
       var hp2 = what.split(':'), hk = hp2[1], hv = +hp2[2];
       if (hk === 'room' && hv === this._htRoom()) return;
@@ -1279,8 +1280,8 @@ class LcarsPanelCard extends TabletPanelBase {
       this._serverPage().forEach(function (sec, si) { (sec.column === 2 ? right : left).push(secHtml(sec, si + 1)); });
     } else if (c.page === 'energy') {
       this._energyPage().forEach(function (sec, si) { (sec.column === 2 ? right : left).push(secHtml(sec, si + 1)); });
-    } else if (c.page === 'heating') {
-      var hp = this._heatingPage();
+    } else if (c.page === 'heating' || c.page === 'office') {
+      var hp = c.page === 'office' ? this._officePage() : this._heatingPage();
       mainHtml = '<div class="main heat"><div style="display:flex;flex-direction:column;gap:14px;min-width:0">' + secHtml(hp[0], 1) +
         '</div><div style="display:flex;flex-direction:column;gap:14px;min-width:0">' + hp.slice(1).map(function (sec, si) { return secHtml(sec, si + 2); }).join('') + '</div></div>';
     } else if (c.page === 'forecast') {
@@ -1847,6 +1848,194 @@ class LcarsPanelCard extends TabletPanelBase {
     ];
   }
 
+  // ---- office (page: office) ---------------------------------------------
+  // config.office: { climate, temp, humidity, sensor_battery, timer, boost_temp, start, wfh, working,
+  //   socket, scenes:[{label, entity}], power:[{name, power, color}], temps:[...], hours:[...] }
+  _ofIds() {
+    var o = this._config.office;
+    if (!o || this._config.page !== 'office') return [];
+    var ids = [o.climate, o.temp, o.humidity, o.sensor_battery, o.timer, o.boost_temp, o.wfh, o.working, o.socket];
+    (o.power || []).forEach(function (p) { ids.push(p.power); });
+    return ids.filter(Boolean);
+  }
+  _ofHours() { var o = this._config.office || {}; return this._htPref('ofh', 2, function (v) { return (o.hours || [1, 2, 3]).indexOf(v) >= 0; }); }
+  _ofDays() { return this._htPref('ofd', 1, function (v) { return [1, 3, 7].indexOf(v) >= 0; }); }
+
+  // 5-minute stats for the room sensor and the plugs, plus the heater's target from its history.
+  _ofFetch() {
+    var o = this._config.office, self = this, days = this._ofDays();
+    if (!o || this._ofBusy || !this._hass || !this._hass.callWS) return;
+    this._ofBusy = true;
+    var from = new Date(Date.now() - days * 864e5).toISOString();
+    var ids = [o.temp].concat((o.power || []).map(function (p) { return p.power; })).filter(Boolean);
+    Promise.all([
+      this._hass.callWS({ type: 'recorder/statistics_during_period', start_time: from, statistic_ids: ids, period: '5minute', types: ['mean'] }),
+      this._hass.callWS({ type: 'history/history_during_period', start_time: from, entity_ids: [o.climate], minimal_response: false, no_attributes: false, significant_changes_only: false }),
+    ]).then(function (r) {
+      var pts = [], last = {};
+      ((r[1] || {})[o.climate] || []).forEach(function (s) {
+        var a = s.a || s.attributes || last; last = a;
+        pts.push({ t: s.lu != null ? s.lu * 1000 : Date.parse(s.last_updated), cur: a.current_temperature != null ? +a.current_temperature : null,
+          tgt: s.s === 'off' || a.temperature == null ? null : +a.temperature });
+      });
+      self._of = { stats: r[0] || {}, pts: pts, days: days, at: Date.now() };
+    }).catch(function () { self._of = { stats: (self._of || {}).stats || {}, pts: (self._of || {}).pts || [], days: days, at: Date.now(), err: true }; })
+      .then(function () { self._ofBusy = false; if (self._config.page === 'office') self._render(); });
+  }
+
+  // Room temperature (green), heater target (white), plug power (right axis), heater-on strip.
+  _ofChart(o, d) {
+    var W = 1000, H = 250, top = 8, bot = 206, sTop = 216, sBot = 246, now = Date.now(), t0 = now - d.days * 864e5, span = now - t0;
+    var X = function (t) { return ((Math.max(t, t0) - t0) / span * W).toFixed(1); };
+    var rows = function (id) {
+      return ((d.stats || {})[id] || []).filter(function (x) { return x.mean != null; })
+        .map(function (x) { return { t: (typeof x.start === 'number' ? x.start : Date.parse(x.start)) + 150000, v: x.mean }; });
+    };
+    var room = rows(o.temp), vals = [];
+    room.forEach(function (p) { vals.push(p.v); });
+    d.pts.forEach(function (p) { if (p.tgt != null) vals.push(p.tgt); });
+    if (!vals.length) return '<div class="kv"><span class="k">History</span><span class="v">LOADING...</span></div>';
+    var lo = Math.floor(Math.min.apply(null, vals)) - 0.5, hi = Math.ceil(Math.max.apply(null, vals)) + 0.5;
+    var Y = function (v) { return (bot - (v - lo) / (hi - lo) * (bot - top)).toFixed(1); };
+    var grid = '', path = function (list, y) { var s = ''; list.forEach(function (p) { s += (s ? 'L' : 'M') + X(p.t) + ' ' + y(p.v); }); return s; };
+    for (var g = Math.ceil(lo); g <= hi; g++) grid += '<path d="M0 ' + Y(g) + 'H' + W + '" stroke="#262626" stroke-width="1" vector-effect="non-scaling-stroke"/>';
+    var tgt = '', strip = '', was = false;
+    d.pts.forEach(function (p, i) {
+      var nx = i + 1 < d.pts.length ? d.pts[i + 1].t : now;
+      if (nx < t0) return;
+      if (p.tgt != null) tgt += (tgt && was ? 'V' + Y(p.tgt) : 'M' + X(p.t) + ' ' + Y(p.tgt)) + 'H' + X(nx);
+      was = p.tgt != null;
+      // The heater reports no power, so "heating" means its own reading is below its target.
+      if (p.tgt != null && p.cur != null && p.cur < p.tgt) strip += '<rect x="' + X(p.t) + '" y="' + sTop + '" width="' + Math.max(0.5, X(nx) - X(p.t)).toFixed(1) + '" height="' + (sBot - sTop) + '" fill="#ff9c00" fill-opacity=".8"/>';
+    });
+    var pw = '', pmax = 0, legend = '';
+    (o.power || []).forEach(function (p) { rows(p.power).forEach(function (r) { pmax = Math.max(pmax, r.v); }); });
+    pmax = pmax > 0 ? Math.ceil(pmax / 50) * 50 : 0;
+    if (pmax) (o.power || []).forEach(function (p) {
+      pw += '<path d="' + path(rows(p.power), function (v) { return (bot - v / pmax * (bot - top)).toFixed(1); }) + '" stroke="' + (p.color || '#ffcc66') +
+        '" stroke-width="1.5" stroke-opacity=".9" fill="none" vector-effect="non-scaling-stroke"/>';
+      legend += '<span><i style="background:' + (p.color || '#ffcc66') + '"></i>' + esc(String(p.name).toUpperCase()) + ' POWER</span>';
+    });
+    var labs = '', DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'], d0 = new Date(t0);
+    d0.setMinutes(0, 0, 0);
+    for (var t = d0.getTime(); t <= now; t += 36e5) {
+      var dt = new Date(t), h = dt.getHours();
+      if (t < t0 || (d.days === 1 ? h % 6 : h)) continue;
+      labs += '<span style="left:' + ((t - t0) / span * 100).toFixed(2) + '%">' + (d.days === 1 ? pad2(h) + ':00' : DAYS[dt.getDay()] + ' ' + dt.getDate()) + '</span>';
+      if (d.days !== 1 || !h) grid += '<path d="M' + X(t) + ' ' + top + 'V' + sBot + '" stroke="#333" stroke-width="1" vector-effect="non-scaling-stroke"/>';
+    }
+    var vs = ' fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"';
+    return '<div class="htc"><svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' + grid + strip + pw +
+      '<path d="' + tgt + '" stroke="#fff" stroke-opacity=".85" stroke-width="2"' + vs + '/>' +
+      '<path d="' + path(room, Y) + '" stroke="#99ff99" stroke-width="3"' + vs + '/></svg>' +
+      '<span class="ya hi">' + hi.toFixed(0) + '°</span><span class="ya lo">' + lo.toFixed(0) + '°</span>' +
+      (pmax ? '<span class="ya cr" style="color:#ffcc66">' + pmax + ' W</span>' : '') +
+      '<span class="ya st">HEATER</span><div class="xl">' + labs + '</div></div>' +
+      '<div class="elegend"><span><i style="background:#99ff99"></i>ROOM</span><span><i style="background:#fff"></i>TARGET</span>' + legend +
+      '<span><i style="background:#ff9c00"></i>HEATER ON (EST.)</span></div>';
+  }
+
+  _officePage() {
+    var o = this._config.office, self = this;
+    if (!o) return [{ title: 'Office', color: LC[0], html: '<div class="kv"><span class="k">Status</span><span class="v">NOT CONFIGURED</span></div>' }];
+    var num = function (id) { var s = self._st(id); var n = s ? parseFloat(s.state) : NaN; return isNaN(n) ? null : n; };
+    var deg = function (v) { return v == null ? '--' : (+v).toFixed(1) + '°C'; };
+    var kv = function (rows) {
+      return '<div class="kv">' + rows.map(function (r) {
+        return '<span class="k">' + esc(r[0]) + '</span><span class="v' + (r[2] ? ' ' + r[2] : '') + '">' + esc(r[1]) + '</span>';
+      }).join('') + '</div>';
+    };
+    var chip = function (on, ui, label, bg) {
+      return '<button class="b' + (on ? '' : ' off') + '" data-ui="' + ui + '" style="background:' + bg + '"><span class="l">' + esc(label) + '</span></button>';
+    };
+    var cs = this._st(o.climate), ca = cs ? cs.attributes : {}, tm = this._st(o.timer);
+    var boosting = tm && tm.state === 'active', bt = num(o.boost_temp), wfh = this._st(o.wfh), work = this._st(o.working);
+    var ends = boosting && tm.attributes.finishes_at ? new Date(tm.attributes.finishes_at) : null;
+    var hr = new Date().getHours(), wfhOn = wfh && wfh.state === 'on';
+    var mode = boosting ? 'BOOST ' + (bt == null ? '' : bt.toFixed(0) + '°C ') + (ends ? 'UNTIL ' + this._hhmm(ends) : '')
+      : wfhOn && hr >= 7 && hr < 17 ? 'WFH DAY' : hr >= 7 && hr < 21 ? 'DAYTIME' : 'NIGHT';
+
+    // Left: the graph and the room's readings.
+    var days = this._ofDays(), d = this._of && this._of.days === days ? this._of : null;
+    var dchips = '<div class="chips">' + [1, 3, 7].map(function (n) { return chip(n === days, 'of:days:' + n, n === 1 ? '24 hours' : n + ' days', LC[3]); }).join('') + '</div>';
+    var sb = num(o.sensor_battery);
+    var rows = [['Room', deg(num(o.temp)) + (o.humidity && num(o.humidity) != null ? ' · ' + num(o.humidity).toFixed(0) + '% HUMIDITY' : '')],
+      ['Heater', (cs ? cs.state.toUpperCase() : '--') + ' · READS ' + deg(ca.current_temperature) + ' · TARGET ' + deg(ca.temperature)],
+      ['Mode', mode, boosting ? 'hi' : '']];
+    (o.power || []).forEach(function (p) {
+      var w = num(p.power);
+      rows.push([p.name + ' power', w == null ? '--' : w >= 1000 ? (w / 1000).toFixed(2) + ' KW' : Math.round(w) + ' W']);
+    });
+    if (work) rows.push(['At the desk', work.state === 'on' ? 'YES' : 'NO']);
+    if (sb != null) rows.push(['Sensor battery', sb.toFixed(0) + '%', sb < 20 ? 'warn' : '']);
+    if (d && d.err) rows.push(['Note', 'HISTORY MAY BE STALE', 'warn']);
+    var left = (d ? this._ofChart(o, d) : '<div class="kv"><span class="k">History</span><span class="v">LOADING...</span></div>') + kv(rows) + dchips;
+
+    // Right: boosts.
+    var hours = this._ofHours();
+    var temps = '<div class="chips">' + (o.temps || [18, 19, 20, 21, 22]).map(function (t) {
+      return chip(boosting && bt === t, 'of:t:' + t, t + '°C', boosting && bt === t ? '#ff9c00' : LC[0]);
+    }).join('') + '</div>';
+    var hchips = '<div class="chips">' + (o.hours || [1, 2, 3]).map(function (n) { return chip(n === hours, 'of:h:' + n, n + (n === 1 ? ' hour' : ' hours'), LC[1]); }).join('') + '</div>';
+    var acts = '<div class="chips">' + chip(boosting, 'of:plus', '+30 min', LC[5]) + chip(boosting, 'of:x', 'Cancel', LC[6]) + '</div>';
+    var boost = kv([['Boost', boosting ? 'ON · ' + (bt == null ? '' : bt.toFixed(0) + '°C') + (ends ? ' UNTIL ' + this._hhmm(ends) : '') : 'OFF', boosting ? 'hi' : 'dim'],
+      ['Tap a temperature', 'BOOST FOR ' + hours + (hours === 1 ? ' HOUR' : ' HOURS'), 'dim']]) + temps + hchips + acts;
+
+    // Schedule and the desk.
+    var sched = kv([['07:00–17:00', wfhOn ? '19°C (WFH DAY)' : '16°C', !boosting && wfhOn && hr >= 7 && hr < 17 ? 'hi' : ''],
+      ['07:00–21:00', '16°C', !boosting && !(wfhOn && hr < 17) && hr >= 7 && hr < 21 ? 'hi' : ''],
+      ['21:00–07:00', '12°C', !boosting && (hr >= 21 || hr < 7) ? 'hi' : '']]) +
+      '<div class="chips">' + (o.wfh ? chip(wfhOn, 'of:wfh', 'WFH day ' + (wfhOn ? 'on' : 'off'), LC[2]) : '') + '</div>';
+    var sock = this._st(o.socket), sockOn = sock && sock.state === 'on';
+    var desk = '<div class="chips">' + (o.socket ? chip(sockOn, 'of:sock', 'Desk power ' + (sockOn ? 'on' : 'off'), LC[4]) : '') +
+      (o.scenes || []).map(function (s, i) { return chip(true, 'of:scene:' + i, s.label, LC[3]); }).join('') + '</div>' +
+      (o.note ? kv([['Note', o.note, 'dim']]) : '');
+
+    var span = days === 1 ? '24 hours' : days + ' days';
+    return [
+      { title: 'Office · ' + span, html: left, color: '#99ff99' },
+      { title: 'Boost', html: boost, color: '#ff9c00', column: 2 },
+      { title: 'Schedule', html: sched, color: LC[2], column: 2 },
+      { title: 'Desk', html: desk, color: LC[4], column: 2 },
+    ];
+  }
+
+  _ofUi(what) {
+    var o = this._config.office, p = what.split(':'), self = this;
+    if (!o) return;
+    var tap = function () { if (self._audioOn) tpAudio.seq(LCARS_SFX.tap, 'triangle', 0.2); };
+    if (p[1] === 'days' || p[1] === 'h') {
+      var key = p[1] === 'days' ? 'ofd' : 'ofh', v = +p[2];
+      this['_ht_' + key] = v;
+      try { localStorage.setItem('tp-ht-' + key, String(v)); } catch (e) { /* no storage */ }
+      if (key === 'ofd') { this._of = null; this._ofFetch(); }
+      tap(); this._render(); return;
+    }
+    var tm = this._st(o.timer), boosting = tm && tm.state === 'active';
+    if (p[1] === 't') {
+      var t = +p[2], h = this._ofHours();
+      if (this._audioOn) tpAudio.seq(LCARS_SFX.on, 'sine', 0.15);
+      this._call('script', 'turn_on', { entity_id: o.start, variables: { temp: t, hours: h } }, 'OFFICE BOOST ' + t + '°C ' + h + 'H');
+      if (this._audioOn) this._clip('confirm', 0.5);
+      return;
+    }
+    if (p[1] === 'plus' && boosting) {
+      var left = tm.attributes.finishes_at ? (Date.parse(tm.attributes.finishes_at) - Date.now()) / 36e5 : 0;
+      var bs = this._st(o.boost_temp), bt = bs ? parseFloat(bs.state) : 21;
+      tap();
+      this._call('script', 'turn_on', { entity_id: o.start, variables: { temp: bt, hours: Math.round((Math.max(0, left) + 0.5) * 12) / 12 } }, 'OFFICE BOOST +30 MIN');
+      return;
+    }
+    if (p[1] === 'x' && boosting) {
+      if (this._audioOn) tpAudio.seq(LCARS_SFX.off, 'sine', 0.15);
+      this._call('timer', 'cancel', { entity_id: o.timer }, 'OFFICE BOOST CANCEL');
+      return;
+    }
+    if (p[1] === 'wfh') { tap(); this._call('input_boolean', 'toggle', { entity_id: o.wfh }, 'OFFICE WFH DAY'); return; }
+    if (p[1] === 'sock') { tap(); this._call('switch', 'toggle', { entity_id: o.socket }, 'DESK POWER'); return; }
+    if (p[1] === 'scene') { var sc = (o.scenes || [])[+p[2]]; if (sc) { tap(); this._call('scene', 'turn_on', { entity_id: sc.entity }, String(sc.label).toUpperCase()); } }
+  }
+
   // ---- family locator ----------------------------------------------------
   _famPeople() { return (this._config.family && this._config.family.people) || []; }
 
@@ -1966,6 +2155,7 @@ class LcarsPanelCard extends TabletPanelBase {
     if (this._config && this._config.page === 'server' && (!this._ctr || Date.now() - this._ctr.at > 15000)) this._fetchContainers();
     if (this._config && this._enPage() && this._hass && (!this._en || Date.now() - this._en.at > 600000)) this._fetchEnergy();
     if (this._config && this._config.page === 'forecast' && this._hass && (!this._fcMon || Date.now() - this._fcMon.at > 36e5)) this._fcFetchMonths();
+    if (this._config && this._config.page === 'office' && this._hass && (!this._of || Date.now() - this._of.at > 120000)) this._ofFetch();
     if (this._config && this._config.page === 'heating' && this._hass) {
       if (!this._ht || Date.now() - this._ht.at > 600000) this._htFetch();
       var hh = this._htH && this._htH[this._htRoom()];
