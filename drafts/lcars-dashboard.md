@@ -24,6 +24,7 @@ The buttons down the left side switch between pages.
 - Family: a map showing where everyone is, how far from home and whether they're heading back
 - Energy: today's cost (estimated, because the meter data arrives a day or two late), 30 days of electricity and gas, which devices use the most over the last day, week or month, and the biggest spikes
 - Forecast: what each device would cost over a whole month at its recent rate of use, and for past months what each device actually used, with the total set against what Octopus charged
+- Heating: one room at a time, the temperature it actually reached against the target it was set to, when its radiator valve was open, and an estimate of what its gas cost, so it's easy to see which rooms are worth turning down
 - Server: CPU, memory, disks and Docker containers on the home server
 - Terminal: the same controls in a green-screen terminal style
 
@@ -32,6 +33,8 @@ The buttons down the left side switch between pages.
 ![The energy page, with daily costs and the devices using the most](assets/images/lcars-dashboard/energy.png)
 
 ![The forecast page, with what each device costs per month at its recent rate of use](assets/images/lcars-dashboard/forecast.png)
+
+![The heating page, with a room's temperature against its target and what each room's heating costs](assets/images/lcars-dashboard/heating.png)
 
 ![The family map](assets/images/lcars-dashboard/family.png)
 
@@ -46,6 +49,7 @@ The buttons down the left side switch between pages.
 - The layout (which buttons, rooms and devices) lives in one JSON file, separate from the code
 - An old Amazon Fire tablet runs it full screen in Fully Kiosk Browser, and the screen wakes when someone walks past
 - Buttons make LCARS-style beeps, and pressing one reads out what it did
+- The heating page splits each hour's gas between the rooms by how far open their radiator valves were, after taking off an allowance for hot water
 - The energy page fits a straight line of daily gas use against outdoor temperature, so it can estimate today's cost before the meter readings arrive
 
 ## Try It

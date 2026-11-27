@@ -339,6 +339,77 @@ function tpMonthModel(cfg, hour, mon, states, start, end) {
   };
 }
 
+// ---- Heating: per-room temperature, target and estimated gas cost ----------
+// cfg: { rooms:[{name, climate, temp, heating, color, electric}] }, gas: energy.gas ({kwh, cost}).
+// stats: recorder hourly stats (heating % and temperature means, gas change). hist: the selected
+// room's climate history ([{t, cur, tgt}]). Gas for an hour is split between rooms by how open
+// their valves were (Tado "heating" %), after taking off hot water: cfg.hot_water_kwh_day (from a
+// summer day with no heating) spread evenly over 06:00-22:00.
+function tpHeatModel(cfg, gas, stats, hist, sel, now, days) {
+  var t0 = now - days * 864e5, rooms = cfg.rooms || [];
+  var hours = function (id) {
+    var m = {};
+    ((stats || {})[id] || []).forEach(function (x) {
+      var t = typeof x.start === 'number' ? x.start : Date.parse(x.start);
+      if (t >= t0) m[t] = x;
+    });
+    return m;
+  };
+  var pct = rooms.map(function (r) { return r.heating && !r.electric ? hours(r.heating) : {}; });
+  var tmp = rooms.map(function (r) { return r.temp ? hours(r.temp) : {}; });
+  var gc = hours(gas.cost), gk = hours(gas.kwh);
+  var out = rooms.map(function (r) { return { name: r.name, color: r.color, electric: !!r.electric, cost: 0, kwh: 0, night: 0, heatH: 0, tSum: 0, tN: 0 }; });
+  var other = { cost: 0, kwh: 0 }, gasFrom = null, gasTo = null, total = 0, selCost = {};
+  Object.keys(gc).map(Number).sort(function (a, b) { return a - b; }).forEach(function (t) {
+    var c = gc[t].change, k = gk[t] ? gk[t].change : null;
+    if (c == null) return;
+    gasFrom = gasFrom == null ? t : gasFrom; gasTo = t; total += c;
+    var P = 0; pct.forEach(function (m) { var x = m[t]; if (x && x.mean > 0) P += x.mean; });
+    var h = new Date(t).getHours(), night = h >= 23 || h < 5;
+    if (P < 1) { other.cost += c; other.kwh += k || 0; return; }
+    var hw = h >= 6 && h < 22 && k > 0 ? Math.min(k, (cfg.hot_water_kwh_day || 0) / 16) : 0;
+    if (hw) { var hc = c * hw / k; other.cost += hc; other.kwh += hw; c -= hc; k -= hw; }
+    pct.forEach(function (m, i) {
+      var x = m[t]; if (!x || !(x.mean > 0)) return;
+      var f = x.mean / P;
+      out[i].cost += c * f; out[i].kwh += (k || 0) * f;
+      if (night) out[i].night += c * f;
+      if (i === sel) selCost[t] = c * f;
+    });
+  });
+  pct.forEach(function (m, i) { Object.keys(m).forEach(function (t) { if (m[t].mean > 0) out[i].heatH += m[t].mean / 100; }); });
+  tmp.forEach(function (m, i) { Object.keys(m).forEach(function (t) { if (m[t].mean != null) { out[i].tSum += m[t].mean; out[i].tN++; } }); });
+  var covH = gasFrom == null ? 0 : (gasTo - gasFrom) / 36e5 + 1;
+  out.forEach(function (r) {
+    r.avgT = r.tN ? r.tSum / r.tN : null;
+    r.perMonth = covH ? r.cost / covH * 24 * 30 : null;
+    r.save1 = r.perMonth == null ? null : r.perMonth * 0.1;   // about 10% less heating per 1°C lower
+  });
+
+  // Selected room: achieved against target from its climate history.
+  var pts = (hist || []).filter(function (p) { return p.t >= t0; }), above = 0, tw = 0, tgtSum = 0, curSum = 0, onH = 0;
+  for (var i = 0; i < pts.length; i++) {
+    var p = pts[i], nx = i + 1 < pts.length ? pts[i + 1].t : now, dt = Math.min(nx - p.t, 36e5) / 36e5;
+    if (p.cur == null || p.tgt == null) continue;
+    tw += dt; tgtSum += p.tgt * dt; curSum += p.cur * dt;
+    if (p.cur > p.tgt + 1) above += dt;
+  }
+  // Heating strip and running cost for the chart, hour by hour.
+  var strip = [], cum = [], run = 0;
+  for (var t = Math.ceil(t0 / 36e5) * 36e5; t <= now; t += 36e5) {
+    var x = pct[sel] && pct[sel][t];
+    strip.push({ t: t, p: x && x.mean > 0 ? x.mean : 0 });
+    if (gasTo != null && t <= gasTo) { run += selCost[t] || 0; cum.push({ t: t + 36e5, v: run }); }
+  }
+  var heatOn = rooms.length ? out.reduce(function (s, r) { return s + r.cost; }, 0) : 0;
+  return {
+    days: days, t0: t0, now: now, rooms: out, other: other, total: total, heating: heatOn, gasTo: gasTo, covH: covH,
+    sel: out[sel], pts: pts, strip: strip, cum: cum,
+    avgTgt: tw ? tgtSum / tw : null, avgCur: tw ? curSum / tw : null, aboveH: above, tgtH: tw,
+    night: out.reduce(function (s, r) { return s + r.night; }, 0),
+  };
+}
+
 // ---- Sound: everything is synthesised with Web Audio, no sound files ------
 var tpAudio = {
   ctx: null,
@@ -525,7 +596,7 @@ class TabletPanelBase extends HTMLElement {
     var ids = [];
     (this._config.readouts || []).forEach(function (r) { ids.push(r.entity); });
     this._items.forEach(function (it) { if (it.entity) ids.push(it.entity); if (it.timer) ids.push(it.timer); });
-    ids = ids.concat(this._carIds(), this._serverIds ? this._serverIds() : [], this._energyIds ? this._energyIds() : []);
+    ids = ids.concat(this._carIds(), this._serverIds ? this._serverIds() : [], this._energyIds ? this._energyIds() : [], this._heatIds ? this._heatIds() : []);
     if (this._config.page === 'family' && this._config.family) {
       (this._config.family.people || []).forEach(function (p) {
         ids.push(p.person, 'sensor.' + p.prefix + '_distance', 'sensor.' + p.prefix + '_direction_of_travel', p.battery, p.alert, p.trip);
@@ -889,10 +960,19 @@ button:active { filter:brightness(1.35); }
 .echart .ec b { position:absolute; bottom:-18px; left:50%; transform:translateX(-50%); font:400 12px Antonio, 'Arial Narrow', sans-serif; color:#888; }
 .elegend { display:flex; gap:14px; font-size:13px; color:#ccc; margin:2px 0 6px; letter-spacing:.05em; }
 .elegend i { display:inline-block; width:10px; height:10px; margin-right:5px; } .elegend .dim { color:#777; margin-left:auto; }
+.main.heat { grid-template-columns:1.65fr 1fr; }
+.htc { position:relative; height:250px; margin:6px 0 20px 30px; }
+.htc svg { position:absolute; top:0; left:0; width:100%; height:100%; }
+.htc .ya { position:absolute; left:-30px; font-size:13px; color:#888; } .htc .ya.hi { top:0; } .htc .ya.lo { top:186px; }
+.htc .ya.cr { left:auto; right:2px; top:0; color:#99ff99; } .htc .ya.st { top:218px; font-size:10px; left:-34px; color:#ff9c00; }
+.htc .xl { position:absolute; left:0; right:0; bottom:-18px; height:16px; }
+.htc .xl span { position:absolute; transform:translateX(-50%); font-size:12px; color:#888; white-space:nowrap; }
 .spk { display:grid; grid-template-columns:auto auto 1fr; gap:3px 12px; font-size:17px; margin-bottom:6px; }
 .spk .sw { color:#cc99cc; white-space:nowrap; } .spk .sv { color:#ffcc66; white-space:nowrap; text-align:right; font-variant-numeric:tabular-nums; }
 .spk .sd { color:#99ccff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 @media (max-height: 680px) {
+  .htc { height:170px; margin:4px 0 16px 26px; } .htc .ya.lo { top:122px; } .htc .ya.st { top:146px; } .htc .ya { font-size:11px; left:-26px; }
+  .htc .xl { bottom:-15px; } .htc .xl span { font-size:10px; }
   .echart { height:96px; padding-bottom:14px; } .echart .ec b { bottom:-14px; font-size:10px; } .elegend { font-size:11px; margin:0 0 3px; }
   .spk { font-size:13px; gap:1px 8px; } .ensrc { font-size:12px; }
   .bars { font-size:14px; gap:3px 8px; margin:2px 0 4px; } .mbar { height:10px; }
@@ -1055,6 +1135,17 @@ class LcarsPanelCard extends TabletPanelBase {
       this._render();
       return;
     }
+    if (what.indexOf('ht:') === 0) {   // heating page: ht:room:<i> or ht:days:<n>
+      var hp2 = what.split(':'), hk = hp2[1], hv = +hp2[2];
+      if (hk === 'room' && hv === this._htRoom()) return;
+      if (hk === 'days' && ([1, 3, 7].indexOf(hv) < 0 || hv === this._htDays())) return;
+      this['_ht_' + hk] = hv;
+      try { localStorage.setItem('tp-ht-' + hk, String(hv)); } catch (e) { /* no storage */ }
+      if (hk === 'room') this._htFetchHist(hv);
+      if (this._audioOn) tpAudio.seq(LCARS_SFX.tap, 'triangle', 0.2);
+      this._render();
+      return;
+    }
     if (what.indexOf('en:days:') === 0) {
       var nd = +what.split(':')[2];
       if ([1, 7, 30].indexOf(nd) < 0 || nd === this._enDays()) return;
@@ -1188,6 +1279,10 @@ class LcarsPanelCard extends TabletPanelBase {
       this._serverPage().forEach(function (sec, si) { (sec.column === 2 ? right : left).push(secHtml(sec, si + 1)); });
     } else if (c.page === 'energy') {
       this._energyPage().forEach(function (sec, si) { (sec.column === 2 ? right : left).push(secHtml(sec, si + 1)); });
+    } else if (c.page === 'heating') {
+      var hp = this._heatingPage();
+      mainHtml = '<div class="main heat"><div style="display:flex;flex-direction:column;gap:14px;min-width:0">' + secHtml(hp[0], 1) +
+        '</div><div style="display:flex;flex-direction:column;gap:14px;min-width:0">' + hp.slice(1).map(function (sec, si) { return secHtml(sec, si + 2); }).join('') + '</div></div>';
     } else if (c.page === 'forecast') {
       this._forecastPage().forEach(function (sec, si) { (sec.column === 2 ? right : left).push(secHtml(sec, si + 1)); });
     } else if (c.page === 'car') {
@@ -1579,6 +1674,179 @@ class LcarsPanelCard extends TabletPanelBase {
     ];
   }
 
+  // ---- heating (page: heating) ------------------------------------------
+  // Achieved vs target for one room at a time, valve demand, and gas cost split between rooms.
+  _heatIds() {
+    var h = this._config.heating;
+    if (!h || this._config.page !== 'heating') return [];
+    return (h.rooms || []).map(function (r) { return r.climate; }).filter(Boolean);
+  }
+
+  _htPref(key, def, ok) {
+    var k = '_ht_' + key;
+    if (this[k] == null) {
+      var v = def;
+      try { var s = localStorage.getItem('tp-ht-' + key); if (s != null && ok(+s)) v = +s; } catch (e) { /* no storage */ }
+      this[k] = v;
+    }
+    return this[k];
+  }
+  _htRoom() { var n = ((this._config.heating || {}).rooms || []).length; return this._htPref('room', 0, function (v) { return v >= 0 && v < n; }); }
+  _htDays() { return this._htPref('days', 7, function (v) { return [1, 3, 7].indexOf(v) >= 0; }); }
+
+  // Hourly stats for every room plus gas (7 days; the page slices 1/3/7), refreshed every 10 minutes.
+  _htFetch() {
+    var h = this._config.heating, g = (this._config.energy || {}).gas, self = this;
+    if (!h || !g || this._htBusy || !this._hass || !this._hass.callWS) return;
+    this._htBusy = true;
+    var ids = [g.cost, g.kwh];
+    (h.rooms || []).forEach(function (r) { if (r.heating) ids.push(r.heating); if (r.temp) ids.push(r.temp); });
+    this._hass.callWS({ type: 'recorder/statistics_during_period', start_time: new Date(Date.now() - 7 * 864e5 - 36e5).toISOString(),
+      statistic_ids: ids, period: 'hour', types: ['change', 'mean'] })
+      .then(function (r) { self._ht = { stats: r || {}, at: Date.now() }; })
+      .catch(function () { self._ht = { stats: (self._ht || {}).stats || {}, at: Date.now(), err: true }; })
+      .then(function () { self._htBusy = false; if (self._config.page === 'heating') self._render(); });
+  }
+
+  // The selected room's climate history (target only lives here), kept 5 minutes per room.
+  _htFetchHist(i) {
+    var r = ((this._config.heating || {}).rooms || [])[i], self = this;
+    this._htH = this._htH || {};
+    var have = this._htH[i];
+    if (!r || (have && (have.busy || Date.now() - have.at < 3e5)) || !this._hass || !this._hass.callWS) return;
+    this._htH[i] = { busy: true, at: 0, pts: have && have.pts };
+    this._hass.callWS({ type: 'history/history_during_period', start_time: new Date(Date.now() - 7 * 864e5).toISOString(),
+      entity_ids: [r.climate], minimal_response: false, no_attributes: false, significant_changes_only: false })
+      .then(function (res) {
+        var pts = [], last = {};
+        ((res || {})[r.climate] || []).forEach(function (s) {
+          var a = s.a || s.attributes || last, t = s.lu != null ? s.lu * 1000 : Date.parse(s.last_updated);
+          last = a;
+          var cur = a.current_temperature != null ? +a.current_temperature : null;
+          var tgt = s.s === 'off' || a.temperature == null ? null : +a.temperature;
+          pts.push({ t: t, cur: cur, tgt: tgt });
+        });
+        self._htH[i] = { pts: pts, at: Date.now() };
+      })
+      .catch(function () { self._htH[i] = { pts: (have || {}).pts || [], at: Date.now(), err: true }; })
+      .then(function () { if (self._config.page === 'heating') self._render(); });
+  }
+
+  // SVG chart: achieved (room colour), target (white dashed steps), running cost (green), valve strip.
+  _htChart(m, color) {
+    var W = 1000, H = 250, top = 8, bot = 206, sTop = 216, sBot = 246;
+    var span = m.now - m.t0, X = function (t) { return ((t - m.t0) / span * W).toFixed(1); };
+    var vals = [];
+    m.pts.forEach(function (p) { if (p.cur != null) vals.push(p.cur); if (p.tgt != null) vals.push(p.tgt); });
+    if (!vals.length) return '<div class="kv"><span class="k">History</span><span class="v">LOADING...</span></div>';
+    var lo = Math.floor(Math.min.apply(null, vals)) - 0.5, hi = Math.ceil(Math.max.apply(null, vals)) + 0.5;
+    var Y = function (v) { return (bot - (v - lo) / (hi - lo) * (bot - top)).toFixed(1); };
+    var cur = '', tgt = '', grid = '', pts0 = false;
+    m.pts.forEach(function (p, i) {
+      if (p.cur != null) cur += (cur ? 'L' : 'M') + X(p.t) + ' ' + Y(p.cur);
+      var nx = i + 1 < m.pts.length ? m.pts[i + 1].t : m.now;
+      if (p.tgt != null) tgt += (tgt && pts0 ? 'V' + Y(p.tgt) : 'M' + X(p.t) + ' ' + Y(p.tgt)) + 'H' + X(nx);
+      pts0 = p.tgt != null;
+    });
+    for (var d = Math.ceil(lo); d <= hi; d++) grid += '<path d="M0 ' + Y(d) + 'H' + W + '" stroke="#262626" stroke-width="1" vector-effect="non-scaling-stroke"/>';
+    var strip = m.strip.map(function (s) {
+      return s.p > 0 ? '<rect x="' + X(s.t) + '" y="' + sTop + '" width="' + (36e5 / span * W + 0.5).toFixed(2) + '" height="' + (sBot - sTop) +
+        '" fill="#ff9c00" fill-opacity="' + Math.min(1, 0.15 + s.p / 100 * 0.85).toFixed(2) + '"/>' : '';
+    }).join('');
+    var cmax = m.cum.length ? m.cum[m.cum.length - 1].v : 0, cost = '';
+    if (cmax > 0) m.cum.forEach(function (c) { cost += (cost ? 'L' : 'M') + X(c.t) + ' ' + (bot - c.v / cmax * (bot - top)).toFixed(1); });
+    // x labels: midnights for 3/7 days, every 6 hours for 1 day
+    var labs = '', DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'], d0 = new Date(m.t0);
+    d0.setMinutes(0, 0, 0);
+    for (var t = d0.getTime(); t <= m.now; t += 36e5) {
+      var dt = new Date(t), h = dt.getHours();
+      if (t < m.t0 || (m.days === 1 ? h % 6 : h)) continue;
+      labs += '<span style="left:' + ((t - m.t0) / span * 100).toFixed(2) + '%">' + (m.days === 1 ? pad2(h) + ':00' : DAYS[dt.getDay()] + ' ' + dt.getDate()) + '</span>';
+      if (m.days !== 1 || !h) grid += '<path d="M' + X(t) + ' ' + top + 'V' + sBot + '" stroke="#333" stroke-width="1" vector-effect="non-scaling-stroke"/>';
+    }
+    var vs = ' fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"';
+    return '<div class="htc"><svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' + grid + strip +
+      '<path d="' + tgt + '" stroke="#fff" stroke-opacity=".85" stroke-width="2"' + vs + '/>' +
+      (cost ? '<path d="' + cost + '" stroke="#99ff99" stroke-width="2"' + vs + '/>' : '') +
+      '<path d="' + cur + '" stroke="' + color + '" stroke-width="3"' + vs + '/></svg>' +
+      '<span class="ya hi">' + hi.toFixed(0) + '°</span><span class="ya lo">' + lo.toFixed(0) + '°</span>' +
+      (cmax > 0 ? '<span class="ya cr">£' + cmax.toFixed(2) + '</span>' : '') +
+      '<span class="ya st">VALVE</span><div class="xl">' + labs + '</div></div>' +
+      '<div class="elegend"><span><i style="background:' + color + '"></i>ACHIEVED</span><span><i style="background:#fff"></i>TARGET</span>' +
+      (cmax > 0 ? '<span><i style="background:#99ff99"></i>GAS COST SO FAR</span>' : '') + '<span><i style="background:#ff9c00"></i>VALVE OPEN</span></div>';
+  }
+
+  _heatingPage() {
+    var h = this._config.heating, g = (this._config.energy || {}).gas, self = this;
+    if (!h || !g) return [{ title: 'Heating', color: LC[0], html: '<div class="kv"><span class="k">Status</span><span class="v">NOT CONFIGURED</span></div>' }];
+    var rooms = h.rooms || [], ri = this._htRoom(), days = this._htDays(), room = rooms[ri];
+    var hist = this._htH && this._htH[ri];
+    var m = tpHeatModel(h, g, this._ht ? this._ht.stats : {}, hist ? hist.pts : [], ri, Date.now(), days);
+    // Monthly figures and savings always come from the full 7 days (gas arrives a day or two late).
+    var m7 = days === 7 ? m : tpHeatModel(h, g, this._ht ? this._ht.stats : {}, [], ri, Date.now(), 7);
+    var gbp = function (v) { return v == null || isNaN(v) ? '--' : '£' + (v >= 100 ? Math.round(v) : v.toFixed(2)); };
+    var deg = function (v) { return v == null ? '--' : v.toFixed(1) + '°C'; };
+    var kv = function (rows) {
+      return '<div class="kv">' + rows.map(function (r) {
+        return '<span class="k">' + esc(r[0]) + '</span><span class="v' + (r[2] ? ' ' + r[2] : '') + '">' + esc(r[1]) + '</span>';
+      }).join('') + '</div>';
+    };
+    var DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    var when = function (ms) { var d = new Date(ms); return DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + pad2(d.getHours()) + ':00'; };
+    var chip = function (on, ui, label, bg) {
+      return '<button class="b' + (on ? '' : ' off') + '" data-ui="' + ui + '" style="background:' + bg + '"><span class="l">' + esc(label) + '</span></button>';
+    };
+    var rchips = '<div class="chips">' + rooms.map(function (r, i) { return chip(i === ri, 'ht:room:' + i, r.short || r.name, r.color || LC[1]); }).join('') + '</div>';
+    var dchips = '<div class="chips">' + [1, 3, 7].map(function (n) { return chip(n === days, 'ht:days:' + n, n === 1 ? '24 hours' : n + ' days', LC[3]); }).join('') + '</div>';
+
+    var cs = this._st(room.climate), ca = cs ? cs.attributes : {};
+    var r = m.sel || {}, r7 = m7.sel || {};
+    var rows = [['Now', deg(ca.current_temperature) + ' · TARGET ' + (cs && cs.state === 'off' ? 'OFF' : deg(ca.temperature))]];
+    if (m.avgTgt != null) {
+      var diff = m.avgCur - m.avgTgt;
+      rows.push(['Average', deg(m.avgCur) + ' · TARGET ' + deg(m.avgTgt), diff > 0.7 ? 'warn' : '']);
+      rows.push(['Over target by 1°C+', Math.round(m.aboveH) + ' HRS (' + Math.round(m.aboveH / (m.tgtH || 1) * 100) + '%)', m.aboveH / (m.tgtH || 1) > 0.2 ? 'warn' : '']);
+    }
+    if (r.electric) rows.push(['Cost', 'ELECTRIC · NOT METERED', 'dim']);
+    else {
+      rows.push(['Valve open', Math.round(r.heatH) + ' HRS AT FULL']);
+      rows.push(['Gas (estimate)', m.covH ? gbp(r.cost) + ' · ' + gbp(r7.perMonth) + '/MONTH' : 'AWAITING OCTOPUS', m.covH ? '' : 'dim']);
+      if (r7.save1) rows.push(['1°C lower saves about', gbp(r7.save1) + '/MONTH', 'hi']);
+    }
+    if (hist && hist.err) rows.push(['Note', 'HISTORY MAY BE STALE', 'warn']);
+    var main = rchips + this._htChart(m, room.color || '#99ccff') + kv(rows) + dchips;
+
+    // All rooms: share of the gas, with the averages behind it.
+    // Until Octopus gas arrives (24 hours) the bars show valve-open hours instead of pounds.
+    var byGas = !!m.covH, val = function (x) { return byGas ? x.cost : x.heatH; };
+    var gasRooms = m.rooms.filter(function (x) { return !x.electric; }), mx = 0;
+    gasRooms.forEach(function (x) { mx = Math.max(mx, val(x)); }); mx = Math.max(mx, byGas ? m.other.cost : 0) || 1;
+    var bar = function (name, v, color, extra) {
+      return '<span class="k">' + esc(name) + '</span><span class="mbar"><i style="width:' + Math.min(100, v / mx * 100) + '%;background:' + color + '"></i></span>' +
+        '<span class="v">' + (extra ? '<span class="dim">' + esc(extra) + ' · </span>' : '') + (byGas ? gbp(v) : v.toFixed(1) + ' HRS') + '</span>';
+    };
+    var list = '<div class="bars">' + gasRooms.slice().sort(function (a, b) { return val(b) - val(a); }).map(function (x) {
+      return bar(x.name, val(x), x.color || '#99ccff', x.avgT == null ? '' : x.avgT.toFixed(1) + '°');
+    }).join('') + (byGas ? bar('Hot water + other', m.other.cost, '#666', '') : '') + '</div>';
+    var tot = [['Gas total', m.covH ? gbp(m.total) + ' · ' + gbp(m7.covH ? m7.total / m7.covH * 24 * 30 : null) + '/MONTH' : 'AWAITING OCTOPUS', m.covH ? '' : 'dim'],
+    ];
+    if (byGas) tot.push(['Overnight heating (23–05)', gbp(m.night)]);
+    else tot.push(['Bars show', 'HOURS OF VALVE FULLY OPEN', 'dim']);
+    if (m.gasTo) tot.push(['Octopus gas to', when(m.gasTo + 36e5), 'dim']);
+    tot.push(['Split by', 'VALVE OPENING, ESTIMATE', 'dim']);
+    if (this._ht && this._ht.err) tot.push(['Note', 'HISTORY MAY BE STALE', 'warn']);
+
+    // Where to save: the biggest rooms and what a degree is worth in each.
+    var tips = m7.rooms.filter(function (x) { return !x.electric; }).filter(function (x) { return x.save1; }).sort(function (a, b) { return b.save1 - a.save1; }).slice(0, 3)
+      .map(function (x) { return [x.name + ' −1°C', gbp(x.save1) + '/MONTH', 'hi']; });
+    var span = days === 1 ? '24 hours' : days + ' days';
+    return [
+      { title: room.name + ' · ' + span, html: main, color: room.color || LC[1] },
+      { title: (byGas ? 'Gas by room · ' : 'Heating by room · ') + span, html: list + kv(tot), color: LC[5], column: 2 },
+      { title: 'Biggest savings', html: kv(tips.length ? tips : [['Savings', 'AWAITING GAS DATA', 'dim']]), color: LC[3], column: 2 },
+    ];
+  }
+
   // ---- family locator ----------------------------------------------------
   _famPeople() { return (this._config.family && this._config.family.people) || []; }
 
@@ -1698,6 +1966,11 @@ class LcarsPanelCard extends TabletPanelBase {
     if (this._config && this._config.page === 'server' && (!this._ctr || Date.now() - this._ctr.at > 15000)) this._fetchContainers();
     if (this._config && this._enPage() && this._hass && (!this._en || Date.now() - this._en.at > 600000)) this._fetchEnergy();
     if (this._config && this._config.page === 'forecast' && this._hass && (!this._fcMon || Date.now() - this._fcMon.at > 36e5)) this._fcFetchMonths();
+    if (this._config && this._config.page === 'heating' && this._hass) {
+      if (!this._ht || Date.now() - this._ht.at > 600000) this._htFetch();
+      var hh = this._htH && this._htH[this._htRoom()];
+      if (!hh || (!hh.busy && Date.now() - hh.at > 3e5)) this._htFetchHist(this._htRoom());
+    }
     if (this._config && this._config.page === 'car' && this._hass && (!this._cc || Date.now() - this._cc.at > 600000)) this._fetchCarCost();
     // Map made while hidden: resize and refit once it is actually on screen.
     if (this._map && this._mapBox) {

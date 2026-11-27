@@ -29,12 +29,14 @@
   <li>Family: a map showing where everyone is, how far from home and whether they're heading back</li>
   <li>Energy: today's cost (estimated, because the meter data arrives a day or two late), 30 days of electricity and gas, which devices use the most over the last day, week or month, and the biggest spikes</li>
   <li>Forecast: what each device would cost over a whole month at its recent rate of use, and for past months what each device actually used, with the total set against what Octopus charged</li>
+  <li>Heating: one room at a time, the temperature it actually reached against the target it was set to, when its radiator valve was open, and an estimate of what its gas cost, so it's easy to see which rooms are worth turning down</li>
   <li>Server: CPU, memory, disks and Docker containers on the home server</li>
   <li>Terminal: the same controls in a green-screen terminal style</li>
 </ul>
 <img src="../assets/images/lcars-dashboard/car.png" alt="The car page">
 <img src="../assets/images/lcars-dashboard/energy.png" alt="The energy page, with daily costs and the devices using the most">
 <img src="../assets/images/lcars-dashboard/forecast.png" alt="The forecast page, with what each device costs per month at its recent rate of use">
+<img src="../assets/images/lcars-dashboard/heating.png" alt="The heating page, with a room's temperature against its target and what each room's heating costs">
 <img src="../assets/images/lcars-dashboard/family.png" alt="The family map">
 <img src="../assets/images/lcars-dashboard/server.png" alt="The server page">
 <img src="../assets/images/lcars-dashboard/terminal.png" alt="The terminal version">
@@ -45,6 +47,7 @@
   <li>The layout (which buttons, rooms and devices) lives in one JSON file, separate from the code</li>
   <li>An old Amazon Fire tablet runs it full screen in Fully Kiosk Browser, and the screen wakes when someone walks past</li>
   <li>Buttons make LCARS-style beeps, and pressing one reads out what it did</li>
+  <li>The heating page splits each hour's gas between the rooms by how far open their radiator valves were, after taking off an allowance for hot water</li>
   <li>The energy page fits a straight line of daily gas use against outdoor temperature, so it can estimate today's cost before the meter readings arrive</li>
 </ul>
 <h3>Try It</h3>

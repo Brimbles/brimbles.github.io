@@ -62,6 +62,43 @@
     'sensor.dehumidifier_power': function (t) { return { mean: devAt('dehum', t) * 1000 }; },
     'sensor.desk_power': function (t) { return { mean: devAt('desk', t) * 1000 }; },
   };
+  // ---- made-up rooms: 8 days of 5-minute room temperatures under a schedule -----
+  // Each room loses heat to outside and gains it while its valve is open. The living room
+  // also warms up in the evening on its own (TV, people), so it overshoots its target.
+  var HROOMS = [
+    { id: 'living_room', name: 'Living room', short: 'Living', color: '#ff9c00', loss: 0.010, gain: 0.22, extra: [19, 23, 0.1],
+      sched: [[0, 16], [6, 20], [8, 17], [17, 18], [22, 16]] },
+    { id: 'dining_room', name: 'Dining room', short: 'Dining', color: '#ffcc66', loss: 0.017, gain: 0.20,
+      sched: [[0, 16], [6, 20], [8, 17], [17, 18], [22, 16]] },
+    { id: 'main_bedroom', name: 'Main bedroom', short: 'Main bed', color: '#99ccff', loss: 0.011, gain: 0.26,
+      sched: [[0, 17], [5.5, 19], [8, 16], [18.5, 20], [19.5, 17]] },
+    { id: 'kids_room', name: 'Kids room', short: 'Kids', color: '#cc99cc', loss: 0.013, gain: 0.26,
+      sched: [[0, 17], [5.5, 20], [8, 16], [18.5, 20], [19.5, 17]] },
+    { id: 'office', name: 'Office', color: '#99ff99', loss: 0.012, gain: 0.30, electric: true,
+      sched: [[0, 12], [7, 19], [17, 16], [21, 12]] },
+  ];
+  var HSTEP = 5 * 60000, HIST = {}, HHOUR = {};
+  (function simulate() {
+    var t0 = Math.floor((Date.now() - 8 * DAY) / HSTEP) * HSTEP;
+    HROOMS.forEach(function (r, ri) {
+      var T = 17, pts = [], hv = {}, ht = {};
+      for (var t = t0; t <= Date.now(); t += HSTEP) {
+        var d = new Date(t), hr = d.getHours() + d.getMinutes() / 60, tgt = r.sched[0][1];
+        r.sched.forEach(function (s) { if (hr >= s[0]) tgt = s[1]; });
+        var valve = Math.max(0, Math.min(1, (tgt - T + 0.2) / 0.5));
+        var ex = r.extra && d.getHours() >= r.extra[0] && d.getHours() < r.extra[1] ? r.extra[2] : 0;
+        T += valve * r.gain - r.loss * (T - tempAt(t)) + ex + (rnd(t / HSTEP + ri * 99) - 0.5) * 0.04;
+        pts.push({ s: r.electric ? 'heat' : 'auto', a: { current_temperature: Math.round(T * 10) / 10, temperature: tgt }, lu: t / 1000 });
+        var h0 = Math.floor(t / HOUR) * HOUR;
+        (hv[h0] = hv[h0] || []).push(valve * 100); (ht[h0] = ht[h0] || []).push(T);
+      }
+      HIST['climate.' + r.id] = pts;
+      var avg = function (a) { return a.reduce(function (s, x) { return s + x; }, 0) / a.length; };
+      series['sensor.demo_' + r.id + '_heating'] = function (t) { return { mean: hv[t] ? avg(hv[t]) : null }; };
+      series['sensor.demo_' + r.id + '_temp'] = function (t) { return { mean: ht[t] ? avg(ht[t]) : null }; };
+    });
+  })();
+
   // Answers recorder/statistics_during_period from the series above.
   function stats(m) {
     var hourly = m.period === 'hour', out = {};
@@ -172,6 +209,9 @@
         { name: 'Washing machine', energy: 'sensor.washer_energy', power: 'sensor.washer_power', max_kw: 3, color: '#9c9cff' },
         { name: 'Dehumidifier', power: 'sensor.dehumidifier_power', max_kw: 1, color: '#66ccff' },
         { name: 'Desk', power: 'sensor.desk_power', max_kw: 2, color: '#ffcc66' }] },
+    heating: { hot_water_kwh_day: 8, rooms: HROOMS.map(function (r) {
+      return { name: r.name, short: r.short, climate: 'climate.' + r.id, temp: 'sensor.demo_' + r.id + '_temp',
+        heating: r.electric ? undefined : 'sensor.demo_' + r.id + '_heating', color: r.color, electric: r.electric }; }) },
     family: {
       people: [
         { name: 'Alex', person: 'person.alex', prefix: 'home_alex', battery: 'sensor.alex_phone_battery', alert: 'input_boolean.alert_alex', trip: 'input_number.alex_trip_km', color: '#ff9c00' },
@@ -179,7 +219,7 @@
       vehicles: [{ name: 'Shuttle', tracker: 'device_tracker.demo_car_tracker', color: '#cc99cc' }] },
     nav: [
       { label: 'LCARS', path: '#main' }, { label: 'Shuttle', path: '#car', only: 'lcars' }, { label: 'Family', path: '#family', only: 'lcars' },
-      { label: 'Energy', path: '#energy', only: 'lcars' }, { label: 'Forecast', path: '#forecast', only: 'lcars' }, { label: 'Server', path: '#server', only: 'lcars' }, { label: 'Terminal', path: '#terminal' }],
+      { label: 'Energy', path: '#energy', only: 'lcars' }, { label: 'Forecast', path: '#forecast', only: 'lcars' }, { label: 'Heating', path: '#heating', only: 'lcars' }, { label: 'Server', path: '#server', only: 'lcars' }, { label: 'Terminal', path: '#terminal' }],
     readouts: [
       { label: 'Living room', entity: 'climate.living_room', attr: 'current_temperature', unit: '°C' },
       { label: 'Dining room', entity: 'climate.dining_room', attr: 'current_temperature', unit: '°C' },
@@ -208,6 +248,9 @@
       { title: 'Shuttle', column: 2, only: 'lcars', car: true },
       { title: 'Vacuum', term_column: 1, items: [{ type: 'vacuum', label: 'Robot', entity: 'vacuum.robot' }] }],
   };
+
+  // Climate states start where the made-up history ends.
+  HROOMS.forEach(function (r) { var h = HIST['climate.' + r.id], p = h[h.length - 1]; S['climate.' + r.id] = st(p.s, p.a); });
 
   // ---- fake hass -------------------------------------------------------
   var el = null, hass;
@@ -255,6 +298,11 @@
     callService: callService,
     callWS: function (m) {
       if (m.type === 'recorder/statistics_during_period') return new Promise(function (r) { setTimeout(function () { r(stats(m)); }, 250); });
+      if (m.type === 'history/history_during_period') {
+        var since = Date.parse(m.start_time) / 1000, o = {};
+        m.entity_ids.forEach(function (id) { if (HIST[id]) o[id] = HIST[id].filter(function (p) { return p.lu >= since; }); });
+        return new Promise(function (r) { setTimeout(function () { r(o); }, 250); });
+      }
       if (m.type === 'persistent_notification/get') return Promise.resolve([]);
       return Promise.resolve({ issues: [] });
     },
@@ -262,7 +310,7 @@
   };
 
   // ---- page switching (nav buttons change the #hash) -------------------
-  var pages = { main: 1, car: 1, family: 1, energy: 1, forecast: 1, server: 1, terminal: 1 };
+  var pages = { main: 1, car: 1, family: 1, energy: 1, forecast: 1, heating: 1, server: 1, terminal: 1 };
   function page() { var h = location.hash.replace('#', ''); return pages[h] ? h : 'main'; }
   window.tpNavigate = function (path) { window.__tpNavAt = Date.now(); window.__tpNavFrom = '#' + page(); location.hash = path; };
   ['lcars-panel-card', 'terminal-panel-card'].forEach(function (n) {
@@ -272,7 +320,7 @@
     var p = page(), kind = p === 'terminal' ? 'terminal-panel-card' : 'lcars-panel-card';
     var c = JSON.parse(JSON.stringify(cfg));
     if (p === 'terminal') { c.title = 'Home Systems Interface'; c.subtitle = 'Demo node // Link nominal'; }
-    else if (p !== 'main') { c.page = p; c.title = { car: 'Shuttle', family: 'Crew Locator', energy: 'Power Grid', forecast: 'Projections', server: 'Engineering' }[p]; }
+    else if (p !== 'main') { c.page = p; c.title = { car: 'Shuttle', family: 'Crew Locator', energy: 'Power Grid', forecast: 'Projections', heating: 'Climate', server: 'Engineering' }[p]; }
     if (el) el.remove();
     el = document.createElement(kind); el.setConfig(c);
     if (p === 'server') { // the real page asks the server's Glances API for this list
