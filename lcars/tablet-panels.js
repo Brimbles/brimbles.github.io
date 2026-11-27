@@ -1959,8 +1959,10 @@ class LcarsPanelCard extends TabletPanelBase {
     var boosting = tm && tm.state === 'active', bt = num(o.boost_temp), wfh = this._st(o.wfh), work = this._st(o.working);
     var ends = boosting && tm.attributes.finishes_at ? new Date(tm.attributes.finishes_at) : null;
     var hr = new Date().getHours(), wfhOn = wfh && wfh.state === 'on';
+    // Schedule (script.office_heating_apply_schedule): boost, else 19°C in use, 16°C 07:00-midnight, 12°C overnight.
+    var day = hr >= 7;
     var mode = boosting ? 'BOOST ' + (bt == null ? '' : bt.toFixed(0) + '°C ') + (ends ? 'UNTIL ' + this._hhmm(ends) : '')
-      : wfhOn && hr >= 7 && hr < 17 ? 'WFH DAY' : hr >= 7 && hr < 21 ? 'DAYTIME' : 'NIGHT';
+      : day && wfhOn ? 'IN USE' : day ? 'DAYTIME' : 'NIGHT';
 
     // Left: the graph and the room's readings.
     var days = this._ofDays(), d = this._of && this._of.days === days ? this._of : null;
@@ -1990,10 +1992,11 @@ class LcarsPanelCard extends TabletPanelBase {
       ['Tap a temperature', 'BOOST FOR ' + hours + (hours === 1 ? ' HOUR' : ' HOURS'), 'dim']]) + temps + hchips + acts;
 
     // Schedule and the desk.
-    var sched = kv([['07:00–17:00', wfhOn ? '19°C (WFH DAY)' : '16°C', !boosting && wfhOn && hr >= 7 && hr < 17 ? 'hi' : ''],
-      ['07:00–21:00', '16°C', !boosting && !(wfhOn && hr < 17) && hr >= 7 && hr < 21 ? 'hi' : ''],
-      ['21:00–07:00', '12°C', !boosting && (hr >= 21 || hr < 7) ? 'hi' : '']]) +
-      '<div class="chips">' + (o.wfh ? chip(wfhOn, 'of:wfh', 'WFH day ' + (wfhOn ? 'on' : 'off'), LC[2]) : '') + '</div>';
+    var sched = kv([['In use (desk)', '19°C', !boosting && day && wfhOn ? 'hi' : ''],
+      ['07:00–00:00', '16°C', !boosting && day && !wfhOn ? 'hi' : ''],
+      ['00:00–07:00', '12°C', !boosting && !day ? 'hi' : ''],
+      ['Away 60 min', 'BACK TO 16°C', 'dim']]) +
+      '<div class="chips">' + (o.wfh ? chip(wfhOn, 'of:wfh', 'In use ' + (wfhOn ? 'on' : 'off'), LC[2]) : '') + '</div>';
     var sock = this._st(o.socket), sockOn = sock && sock.state === 'on';
     var desk = '<div class="chips">' + (o.socket ? chip(sockOn, 'of:sock', 'Desk power ' + (sockOn ? 'on' : 'off'), LC[4]) : '') +
       (o.scenes || []).map(function (s, i) { return chip(true, 'of:scene:' + i, s.label, LC[3]); }).join('') + '</div>' +
@@ -2039,7 +2042,7 @@ class LcarsPanelCard extends TabletPanelBase {
       this._call('timer', 'cancel', { entity_id: o.timer }, 'OFFICE BOOST CANCEL');
       return;
     }
-    if (p[1] === 'wfh') { tap(); this._call('input_boolean', 'toggle', { entity_id: o.wfh }, 'OFFICE WFH DAY'); return; }
+    if (p[1] === 'wfh') { tap(); this._call('input_boolean', 'toggle', { entity_id: o.wfh }, 'OFFICE IN USE'); return; }
     if (p[1] === 'sock') { tap(); this._call('switch', 'toggle', { entity_id: o.socket }, 'DESK POWER'); return; }
     if (p[1] === 'scene') { var sc = (o.scenes || [])[+p[2]]; if (sc) { tap(); this._call('scene', 'turn_on', { entity_id: sc.entity }, String(sc.label).toUpperCase()); } }
   }

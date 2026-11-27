@@ -75,7 +75,7 @@
     { id: 'kids_room', name: 'Kids room', short: 'Kids', color: '#cc99cc', loss: 0.013, gain: 0.26,
       sched: [[0, 17], [5.5, 20], [8, 16], [18.5, 20], [19.5, 17]] },
     { id: 'office', name: 'Office', color: '#99ff99', loss: 0.012, gain: 0.30, electric: true,
-      sched: [[0, 12], [7, 19], [17, 16], [21, 12]] },
+      sched: [[0, 12], [7, 16], [9, 19], [17, 16]] },
   ];
   var HSTEP = 5 * 60000, HIST = {}, HHOUR = {};
   (function simulate() {
@@ -262,7 +262,7 @@
         { type: 'script', label: 'Downstairs', entity: 'script.downstairs_boost' },
         { type: 'script', label: 'Whole house', entity: 'script.whole_house_boost' },
         { type: 'script', label: 'Cancel boosts', entity: 'script.cancel_boosts' },
-        { type: 'toggle', label: 'WFH day', entity: 'input_boolean.wfh_day' },
+        { type: 'toggle', label: 'Office in use', entity: 'input_boolean.wfh_day' },
         { type: 'script', label: 'Office boost', entity: 'script.office_boost_toggle', timer: 'timer.office_boost', idle_text: '21°C · 2 HRS' }] },
       { title: 'Shuttle', column: 2, only: 'lcars', car: true },
       { title: 'Vacuum', term_column: 1, items: [{ type: 'vacuum', label: 'Robot', entity: 'vacuum.robot' }] }],
