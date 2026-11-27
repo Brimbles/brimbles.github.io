@@ -88,7 +88,7 @@
         var valve = Math.max(0, Math.min(1, (tgt - T + 0.2) / 0.5));
         var ex = r.extra && d.getHours() >= r.extra[0] && d.getHours() < r.extra[1] ? r.extra[2] : 0;
         T += valve * r.gain - r.loss * (T - tempAt(t)) + ex + (rnd(t / HSTEP + ri * 99) - 0.5) * 0.04;
-        pts.push({ s: r.electric ? 'heat' : 'auto', a: { current_temperature: Math.round(T * 10) / 10, temperature: tgt }, lu: t / 1000 });
+        pts.push({ s: r.electric ? 'heat' : 'auto', a: { current_temperature: r.electric ? Math.round(T) : Math.round(T * 10) / 10, temperature: tgt }, lu: t / 1000 });
         var h0 = Math.floor(t / HOUR) * HOUR;
         (hv[h0] = hv[h0] || []).push(valve * 100); (ht[h0] = ht[h0] || []).push(T);
       }
@@ -99,10 +99,8 @@
     });
   })();
 
-  // 5-minute series for the office page: room temperature from the simulation, desk power.
+  // 5-minute series for the office page: desk power.
   var series5 = {
-    'sensor.demo_office_temp': function (t) { var h = HIST['climate.office'], i = Math.floor((t - h[0].lu * 1000) / HSTEP);
-      return { mean: i >= 0 && i < h.length ? h[i].a.current_temperature - 0.4 : null }; },
     'sensor.desk_power': function (t) { var i = Math.floor(t / HSTEP); return { mean: devAt('desk', Math.floor(t / HOUR) * HOUR) * 1000 * (0.7 + rnd(i * 7) * 0.6) + (rnd(i * 3) < 0.03 ? 60 : 0) }; },
   };
 
@@ -165,7 +163,6 @@
     'climate.office': st('heat', { current_temperature: 16.8 }),
     'sensor.bathroom_humidity': st('64'), 'sensor.tablet_battery': st('71'),
     'script.upstairs_boost': st('off'), 'script.downstairs_boost': st('off'), 'script.whole_house_boost': st('off'), 'script.cancel_boosts': st('off'),
-    'sensor.demo_office_temp': st(17.9), 'sensor.demo_office_humidity': st(52), 'sensor.demo_office_sensor_battery': st(64),
     'input_number.office_boost_temp': st(21), 'switch.desk_socket': st('on'), 'sensor.desk_power': st(48), 'binary_sensor.office_working': st('on'),
     'scene.office_sleepy': st('off'), 'script.office_boost_start': st('off'),
     'input_boolean.wfh_day': st('on'), 'script.office_boost_toggle': st('off'), 'timer.office_boost': st('idle'),
@@ -229,10 +226,9 @@
         { name: 'Dehumidifier', power: 'sensor.dehumidifier_power', max_kw: 1, color: '#66ccff' },
         { name: 'Desk', power: 'sensor.desk_power', max_kw: 2, color: '#ffcc66' }] },
     heating: { hot_water_kwh_day: 8, rooms: HROOMS.map(function (r) {
-      return { name: r.name, short: r.short, climate: 'climate.' + r.id, temp: 'sensor.demo_' + r.id + '_temp',
+      return { name: r.name, short: r.short, climate: 'climate.' + r.id, temp: r.electric ? undefined : 'sensor.demo_' + r.id + '_temp',
         heating: r.electric ? undefined : 'sensor.demo_' + r.id + '_heating', color: r.color, electric: r.electric }; }) },
-    office: { climate: 'climate.office', temp: 'sensor.demo_office_temp', humidity: 'sensor.demo_office_humidity', sensor_battery: 'sensor.demo_office_sensor_battery',
-      timer: 'timer.office_boost', boost_temp: 'input_number.office_boost_temp', start: 'script.office_boost_start', wfh: 'input_boolean.wfh_day',
+    office: { climate: 'climate.office', timer: 'timer.office_boost', boost_temp: 'input_number.office_boost_temp', start: 'script.office_boost_start', wfh: 'input_boolean.wfh_day',
       working: 'binary_sensor.office_working', socket: 'switch.desk_socket', scenes: [{ label: 'Sleepy', entity: 'scene.office_sleepy' }],
       power: [{ name: 'Desk', power: 'sensor.desk_power', color: '#ffcc66' }], temps: [18, 19, 20, 21, 22], hours: [1, 2, 3] },
     family: {

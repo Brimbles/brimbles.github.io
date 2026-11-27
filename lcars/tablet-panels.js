@@ -1891,7 +1891,9 @@ class LcarsPanelCard extends TabletPanelBase {
       return ((d.stats || {})[id] || []).filter(function (x) { return x.mean != null; })
         .map(function (x) { return { t: (typeof x.start === 'number' ? x.start : Date.parse(x.start)) + 150000, v: x.mean }; });
     };
-    var room = rows(o.temp), vals = [];
+    // Room line: a separate sensor if configured, otherwise the heater's own reading (whole degrees, so drawn as steps).
+    var room = o.temp ? rows(o.temp) : d.pts.filter(function (p) { return p.cur != null; }).map(function (p) { return { t: p.t, v: p.cur }; });
+    var vals = [];
     room.forEach(function (p) { vals.push(p.v); });
     d.pts.forEach(function (p) { if (p.tgt != null) vals.push(p.tgt); });
     if (!vals.length) return '<div class="kv"><span class="k">History</span><span class="v">LOADING...</span></div>';
@@ -1899,6 +1901,11 @@ class LcarsPanelCard extends TabletPanelBase {
     var Y = function (v) { return (bot - (v - lo) / (hi - lo) * (bot - top)).toFixed(1); };
     var grid = '', path = function (list, y) { var s = ''; list.forEach(function (p) { s += (s ? 'L' : 'M') + X(p.t) + ' ' + y(p.v); }); return s; };
     for (var g = Math.ceil(lo); g <= hi; g++) grid += '<path d="M0 ' + Y(g) + 'H' + W + '" stroke="#262626" stroke-width="1" vector-effect="non-scaling-stroke"/>';
+    var steps = function (list) {
+      var s = '';
+      list.forEach(function (p, i) { s += (s ? 'V' + Y(p.v) : 'M' + X(p.t) + ' ' + Y(p.v)) + 'H' + X(i + 1 < list.length ? list[i + 1].t : now); });
+      return s;
+    };
     var tgt = '', strip = '', was = false;
     d.pts.forEach(function (p, i) {
       var nx = i + 1 < d.pts.length ? d.pts[i + 1].t : now;
@@ -1927,7 +1934,7 @@ class LcarsPanelCard extends TabletPanelBase {
     var vs = ' fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"';
     return '<div class="htc"><svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' + grid + strip + pw +
       '<path d="' + tgt + '" stroke="#fff" stroke-opacity=".85" stroke-width="2"' + vs + '/>' +
-      '<path d="' + path(room, Y) + '" stroke="#99ff99" stroke-width="3"' + vs + '/></svg>' +
+      '<path d="' + (o.temp ? path(room, Y) : steps(room)) + '" stroke="#99ff99" stroke-width="3"' + vs + '/></svg>' +
       '<span class="ya hi">' + hi.toFixed(0) + '°</span><span class="ya lo">' + lo.toFixed(0) + '°</span>' +
       (pmax ? '<span class="ya cr" style="color:#ffcc66">' + pmax + ' W</span>' : '') +
       '<span class="ya st">HEATER</span><div class="xl">' + labs + '</div></div>' +
@@ -1959,8 +1966,9 @@ class LcarsPanelCard extends TabletPanelBase {
     var days = this._ofDays(), d = this._of && this._of.days === days ? this._of : null;
     var dchips = '<div class="chips">' + [1, 3, 7].map(function (n) { return chip(n === days, 'of:days:' + n, n === 1 ? '24 hours' : n + ' days', LC[3]); }).join('') + '</div>';
     var sb = num(o.sensor_battery);
-    var rows = [['Room', deg(num(o.temp)) + (o.humidity && num(o.humidity) != null ? ' · ' + num(o.humidity).toFixed(0) + '% HUMIDITY' : '')],
-      ['Heater', (cs ? cs.state.toUpperCase() : '--') + ' · READS ' + deg(ca.current_temperature) + ' · TARGET ' + deg(ca.temperature)],
+    var roomT = o.temp ? num(o.temp) : ca.current_temperature;
+    var rows = [['Room', deg(roomT) + (o.humidity && num(o.humidity) != null ? ' · ' + num(o.humidity).toFixed(0) + '% HUMIDITY' : '') + (o.temp ? '' : ' (HEATER SENSOR)')],
+      ['Heater', (cs ? cs.state.toUpperCase() : '--') + ' · TARGET ' + deg(ca.temperature)],
       ['Mode', mode, boosting ? 'hi' : '']];
     (o.power || []).forEach(function (p) {
       var w = num(p.power);
