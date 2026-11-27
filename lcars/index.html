@@ -305,7 +305,7 @@
           if (S['timer.office_boost'].state === 'active') officeBoost(null);
           else officeBoost(21, 2);
         }
-        if (id === 'script.leaving_house') set('input_boolean.wfh_day', 'off');
+        if (id === 'script.leaving_house') { if (S['timer.office_boost'].state === 'active') officeBoost(null); set('input_boolean.wfh_day', 'off'); }
         if (id === 'script.office_boost_start') { var v = (data && data.variables) || {}; officeBoost(Math.round(v.temp || 21), v.hours || 2); }
         set(id, 'on'); setTimeout(function () { set(id, 'off'); push(); }, 1500);
       } else if (id === 'timer.office_boost' && service === 'cancel') {
