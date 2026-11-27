@@ -165,7 +165,7 @@
     'script.upstairs_boost': st('off'), 'script.downstairs_boost': st('off'), 'script.whole_house_boost': st('off'), 'script.cancel_boosts': st('off'),
     'input_number.office_boost_temp': st(21), 'switch.desk_socket': st('on'), 'sensor.desk_power': st(48), 'binary_sensor.office_working': st('on'),
     'scene.office_sleepy': st('off'), 'script.office_boost_start': st('off'), 'script.leaving_house': st('off'),
-    'input_boolean.wfh_day': st('on'), 'script.office_boost_toggle': st('off'), 'timer.office_boost': st('idle'),
+    'input_boolean.wfh_day': st('on'), 'input_boolean.home_today': st('off'), 'script.office_boost_toggle': st('off'), 'timer.office_boost': st('idle'),
     'vacuum.robot': st('docked', { battery: 100 }),
     // car
     'sensor.demo_car_soc': st(64, { batteryRange: 212 }),
@@ -261,6 +261,7 @@
         { type: 'script', label: 'Upstairs', entity: 'script.upstairs_boost' },
         { type: 'script', label: 'Downstairs', entity: 'script.downstairs_boost' },
         { type: 'script', label: 'Whole house', entity: 'script.whole_house_boost' },
+        { type: 'toggle', label: 'Home today', entity: 'input_boolean.home_today' },
         { type: 'script', label: 'Cancel boosts', entity: 'script.cancel_boosts' },
         { type: 'toggle', label: 'Office in use', entity: 'input_boolean.wfh_day' },
         { type: 'script', label: 'Leaving house', entity: 'script.leaving_house' },
@@ -305,6 +306,7 @@
           if (S['timer.office_boost'].state === 'active') officeBoost(null);
           else officeBoost(21, 2);
         }
+        if (id === 'script.cancel_boosts') { set('input_boolean.home_today', 'off'); if (S['timer.office_boost'].state === 'active') officeBoost(null); }
         if (id === 'script.leaving_house') { if (S['timer.office_boost'].state === 'active') officeBoost(null); set('input_boolean.wfh_day', 'off'); }
         if (id === 'script.office_boost_start') { var v = (data && data.variables) || {}; officeBoost(Math.round(v.temp || 21), v.hours || 2); }
         set(id, 'on'); setTimeout(function () { set(id, 'off'); push(); }, 1500);
