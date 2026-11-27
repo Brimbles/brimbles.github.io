@@ -1996,7 +1996,8 @@ class LcarsPanelCard extends TabletPanelBase {
       ['07:00–00:00', '16°C', !boosting && day && !wfhOn ? 'hi' : ''],
       ['00:00–07:00', '12°C', !boosting && !day ? 'hi' : ''],
       ['Away 60 min', 'BACK TO 16°C', 'dim']]) +
-      '<div class="chips">' + (o.wfh ? chip(wfhOn, 'of:wfh', 'In use ' + (wfhOn ? 'on' : 'off'), LC[2]) : '') + '</div>';
+      '<div class="chips">' + (o.wfh ? chip(wfhOn, 'of:wfh', 'In use ' + (wfhOn ? 'on' : 'off'), LC[2]) : '') +
+      (o.leave ? chip(true, 'of:leave', 'Leaving house', LC[6]) : '') + '</div>';
     var sock = this._st(o.socket), sockOn = sock && sock.state === 'on';
     var desk = '<div class="chips">' + (o.socket ? chip(sockOn, 'of:sock', 'Desk power ' + (sockOn ? 'on' : 'off'), LC[4]) : '') +
       (o.scenes || []).map(function (s, i) { return chip(true, 'of:scene:' + i, s.label, LC[3]); }).join('') + '</div>' +
@@ -2040,6 +2041,11 @@ class LcarsPanelCard extends TabletPanelBase {
     if (p[1] === 'x' && boosting) {
       if (this._audioOn) tpAudio.seq(LCARS_SFX.off, 'sine', 0.15);
       this._call('timer', 'cancel', { entity_id: o.timer }, 'OFFICE BOOST CANCEL');
+      return;
+    }
+    if (p[1] === 'leave' && o.leave) {
+      if (this._audioOn) tpAudio.seq(LCARS_SFX.off, 'sine', 0.15);
+      this._call('script', 'turn_on', { entity_id: o.leave }, 'LEAVING HOUSE');
       return;
     }
     if (p[1] === 'wfh') { tap(); this._call('input_boolean', 'toggle', { entity_id: o.wfh }, 'OFFICE IN USE'); return; }

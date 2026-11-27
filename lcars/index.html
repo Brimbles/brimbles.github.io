@@ -164,7 +164,7 @@
     'sensor.bathroom_humidity': st('64'), 'sensor.tablet_battery': st('71'),
     'script.upstairs_boost': st('off'), 'script.downstairs_boost': st('off'), 'script.whole_house_boost': st('off'), 'script.cancel_boosts': st('off'),
     'input_number.office_boost_temp': st(21), 'switch.desk_socket': st('on'), 'sensor.desk_power': st(48), 'binary_sensor.office_working': st('on'),
-    'scene.office_sleepy': st('off'), 'script.office_boost_start': st('off'),
+    'scene.office_sleepy': st('off'), 'script.office_boost_start': st('off'), 'script.leaving_house': st('off'),
     'input_boolean.wfh_day': st('on'), 'script.office_boost_toggle': st('off'), 'timer.office_boost': st('idle'),
     'vacuum.robot': st('docked', { battery: 100 }),
     // car
@@ -229,7 +229,7 @@
       return { name: r.name, short: r.short, climate: 'climate.' + r.id, temp: r.electric ? undefined : 'sensor.demo_' + r.id + '_temp',
         heating: r.electric ? undefined : 'sensor.demo_' + r.id + '_heating', color: r.color, electric: r.electric }; }) },
     office: { climate: 'climate.office', timer: 'timer.office_boost', boost_temp: 'input_number.office_boost_temp', start: 'script.office_boost_start', wfh: 'input_boolean.wfh_day',
-      working: 'binary_sensor.office_working', socket: 'switch.desk_socket', scenes: [{ label: 'Sleepy', entity: 'scene.office_sleepy' }],
+      working: 'binary_sensor.office_working', socket: 'switch.desk_socket', leave: 'script.leaving_house', scenes: [{ label: 'Sleepy', entity: 'scene.office_sleepy' }],
       power: [{ name: 'Desk', power: 'sensor.desk_power', color: '#ffcc66' }], temps: [18, 19, 20, 21, 22], hours: [1, 2, 3] },
     family: {
       people: [
@@ -263,6 +263,7 @@
         { type: 'script', label: 'Whole house', entity: 'script.whole_house_boost' },
         { type: 'script', label: 'Cancel boosts', entity: 'script.cancel_boosts' },
         { type: 'toggle', label: 'Office in use', entity: 'input_boolean.wfh_day' },
+        { type: 'script', label: 'Leaving house', entity: 'script.leaving_house' },
         { type: 'script', label: 'Office boost', entity: 'script.office_boost_toggle', timer: 'timer.office_boost', idle_text: '21°C · 2 HRS' }] },
       { title: 'Shuttle', column: 2, only: 'lcars', car: true },
       { title: 'Vacuum', term_column: 1, items: [{ type: 'vacuum', label: 'Robot', entity: 'vacuum.robot' }] }],
@@ -304,6 +305,7 @@
           if (S['timer.office_boost'].state === 'active') officeBoost(null);
           else officeBoost(21, 2);
         }
+        if (id === 'script.leaving_house') set('input_boolean.wfh_day', 'off');
         if (id === 'script.office_boost_start') { var v = (data && data.variables) || {}; officeBoost(Math.round(v.temp || 21), v.hours || 2); }
         set(id, 'on'); setTimeout(function () { set(id, 'off'); push(); }, 1500);
       } else if (id === 'timer.office_boost' && service === 'cancel') {
