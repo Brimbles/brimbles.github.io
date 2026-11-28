@@ -293,3 +293,13 @@ footer {
   color: #555;
   font-size: 0.8rem;
 }
+
+/* Same-origin page embedded in a post; an inline onload in the post sizes it to its content. */
+.sketch-frame {
+  display: block;
+  width: 100%;
+  height: 1800px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  margin: 1.5rem 0;
+}

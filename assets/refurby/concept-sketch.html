@@ -1,0 +1,361 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Gwdihŵ Concept Sketch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: field-notebook plate — title, then two figure panels side by side (finished owl / cutaway), legend under the cutaway. */
+:root {
+  --bg: #f3f1ea;
+  --panel: #fbfaf5;
+  --ink: #2b2219;
+  --ink-soft: #6c5f50;
+  --line: #d9d2c2;
+  --accent: #4f6b3a;
+  --callout-bg: #2b2219;
+  --callout-fg: #fbfaf5;
+  --display: "Young Serif", Georgia, serif;
+  --body: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15181a; --panel: #1d2124; --ink: #ece6d8; --ink-soft: #a89e8c;
+    --line: #343a3e; --accent: #9dbb7f; --callout-bg: #ece6d8; --callout-fg: #15181a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15181a; --panel: #1d2124; --ink: #ece6d8; --ink-soft: #a89e8c;
+  --line: #343a3e; --accent: #9dbb7f; --callout-bg: #ece6d8; --callout-fg: #15181a;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 1100px; margin: 0 auto; padding-inline: 20px; padding-block: 32px 48px; }
+header { display: grid; gap: 6px; margin-bottom: 24px; max-width: 70ch; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 5vw, 44px); line-height: 1.1; margin: 0; text-wrap: balance; }
+.lede { color: var(--ink-soft); margin: 0; }
+.plates { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 20px; }
+figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+figcaption { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+figcaption b { font-family: var(--display); font-weight: 400; font-size: 20px; }
+figcaption span { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
+svg { width: 100%; height: auto; display: block; }
+.dim { stroke: var(--ink-soft); stroke-width: 1; fill: none; }
+.dimtext { fill: var(--ink-soft); font-family: var(--mono); font-size: 10px; }
+.lead { stroke: var(--ink); stroke-width: 1; fill: none; }
+.co circle { fill: var(--callout-bg); }
+.co text { fill: var(--callout-fg); font-family: var(--mono); font-size: 10px; font-weight: 600; text-anchor: middle; dominant-baseline: central; }
+.skin-out { fill: none; stroke: var(--ink-soft); stroke-width: 1.5; stroke-dasharray: 5 4; }
+ol.legend { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 6px 18px; font-size: 13.5px; }
+ol.legend li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: baseline; }
+ol.legend .n { font-family: var(--mono); font-size: 11px; font-weight: 600; background: var(--callout-bg); color: var(--callout-fg); border-radius: 50%; width: 20px; height: 20px; display: inline-grid; place-items: center; }
+.notes { margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px; }
+.notes div { border-top: 2px solid var(--accent); padding-top: 8px; font-size: 14px; color: var(--ink-soft); }
+.notes h2 { font-family: var(--display); font-weight: 400; font-size: 17px; color: var(--ink); margin: 0 0 4px; }
+.foot { margin-top: 24px; font-size: 13px; color: var(--ink-soft); }
+.wing-l { transform-origin: 108px 304px; }
+.wing-r { transform-origin: 312px 304px; }
+@keyframes flapL { 0%, 64%, 100% { transform: rotate(0deg); } 70% { transform: rotate(24deg); } 76% { transform: rotate(4deg); } 82% { transform: rotate(24deg); } 88% { transform: rotate(0deg); } }
+@keyframes flapR { 0%, 64%, 100% { transform: rotate(0deg); } 70% { transform: rotate(-24deg); } 76% { transform: rotate(-4deg); } 82% { transform: rotate(-24deg); } 88% { transform: rotate(0deg); } }
+@media (prefers-reduced-motion: no-preference) {
+  .wing-l { animation: flapL 4.5s ease-in-out infinite; }
+  .wing-r { animation: flapR 4.5s ease-in-out infinite; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Refurby · concept sketch · rev A</div>
+    <h1>Gwdihŵ, the tawny owl</h1>
+    <p class="lede">A cuddly talking owl for a three-year-old. The outside is soft fabric with flapping little wings, a printed beak, LCD eyes under polycarbonate domes, and printed eyelids that blink. Inside is a tough PETG skeleton powered by 8 AA batteries.</p>
+  </header>
+
+  <div class="plates">
+    <!-- ============ FINISHED OWL ============ -->
+    <figure>
+      <figcaption><b>Assembled, front view</b><span>approx. 310 × 190 mm</span></figcaption>
+      <svg viewBox="0 0 420 540" role="img" aria-label="Front view of a plump tawny owl plush with fur ear tufts, large round amber LCD eyes with half-closed eyelids, a pale printed beak, a feather ruff at the neck, chevron feather patches on the chest and small feet.">
+        <defs>
+          <pattern id="fur" width="14" height="10" patternUnits="userSpaceOnUse">
+            <rect width="14" height="10" fill="#94602f"/>
+            <path d="M0 10 Q7 2 14 10" fill="none" stroke="#7d4f25" stroke-width="1.4"/>
+          </pattern>
+          <pattern id="furhead" width="12" height="9" patternUnits="userSpaceOnUse">
+            <rect width="12" height="9" fill="#8a5829"/>
+            <path d="M0 9 Q6 2 12 9" fill="none" stroke="#734820" stroke-width="1.2"/>
+          </pattern>
+          <radialGradient id="iris" cx="50%" cy="50%" r="50%">
+            <stop offset="0" stop-color="#3a1d05"/>
+            <stop offset=".45" stop-color="#b8651a"/>
+            <stop offset=".85" stop-color="#e39a2e"/>
+            <stop offset="1" stop-color="#7a3f0c"/>
+          </radialGradient>
+          <radialGradient id="disc" cx="50%" cy="45%" r="60%">
+            <stop offset="0" stop-color="#f0dcb4"/>
+            <stop offset="1" stop-color="#c99a5e"/>
+          </radialGradient>
+          <linearGradient id="beak" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="#e2d6b3"/>
+            <stop offset="1" stop-color="#a99a72"/>
+          </linearGradient>
+        </defs>
+
+        <!-- feet -->
+        <g fill="#c9a24e" stroke="#7d5f22" stroke-width="1.5">
+          <path d="M150 498 q-14 14 -22 20 q16 2 24 -6 q4 10 14 10 q4 -10 -2 -20 q10 6 20 2 q-8 -10 -20 -10 z"/>
+          <path d="M270 498 q14 14 22 20 q-16 2 -24 -6 q-4 10 -14 10 q-4 -10 2 -20 q-10 6 -20 2 q8 -10 20 -10 z"/>
+        </g>
+
+        <!-- body -->
+        <ellipse cx="210" cy="372" rx="138" ry="136" fill="url(#fur)" stroke="#5e3a18" stroke-width="2"/>
+        <!-- chest patch -->
+        <path d="M210 262 C 280 262 300 340 290 410 C 280 470 240 494 210 494 C 180 494 140 470 130 410 C 120 340 140 262 210 262 Z" fill="#dcb67f"/>
+        <g id="chevrons" fill="none" stroke="#6e4520" stroke-width="2.4" stroke-linecap="round"></g>
+        <!-- little wings (servo-driven, pivot at the shoulder) -->
+        <g class="wing wing-l">
+          <path d="M104 298 C 62 314 38 376 52 432 C 62 422 72 420 80 427 C 84 414 94 411 102 416 C 104 404 112 400 118 404 C 120 368 116 330 104 298 Z" fill="#6f4520" stroke="#4d2f12" stroke-width="2"/>
+          <g fill="none" stroke="#a87943" stroke-width="2" stroke-linecap="round">
+            <path d="M92 330 q-14 26 -20 60"/><path d="M104 340 q-6 30 -8 64"/><path d="M80 322 q-18 26 -26 72"/>
+          </g>
+        </g>
+        <g class="wing wing-r">
+          <path d="M316 298 C 358 314 382 376 368 432 C 358 422 348 420 340 427 C 336 414 326 411 318 416 C 316 404 308 400 302 404 C 300 368 304 330 316 298 Z" fill="#6f4520" stroke="#4d2f12" stroke-width="2"/>
+          <g fill="none" stroke="#a87943" stroke-width="2" stroke-linecap="round">
+            <path d="M328 330 q14 26 20 60"/><path d="M316 340 q6 30 8 64"/><path d="M340 322 q18 26 26 72"/>
+          </g>
+        </g>
+
+        <!-- ruff (generated) -->
+        <g id="ruff"></g>
+
+        <!-- ear tufts -->
+        <path d="M118 112 C 100 70 92 44 98 22 C 120 44 140 66 158 92 Z" fill="#5b3714" stroke="#3f250c" stroke-width="2"/>
+        <path d="M302 112 C 320 70 328 44 322 22 C 300 44 280 66 262 92 Z" fill="#5b3714" stroke="#3f250c" stroke-width="2"/>
+        <g stroke="#8a5a2a" stroke-width="1.5" fill="none"><path d="M106 40 q12 30 30 56"/><path d="M314 40 q-12 30 -30 56"/></g>
+
+        <!-- head -->
+        <ellipse cx="210" cy="170" rx="124" ry="104" fill="url(#furhead)" stroke="#5e3a18" stroke-width="2"/>
+        <!-- facial disc -->
+        <path d="M210 112 C 190 82 112 84 100 150 C 92 205 140 238 188 232 Q 210 228 210 214 Q 210 228 232 232 C 280 238 328 205 320 150 C 308 84 230 82 210 112 Z" fill="url(#disc)" stroke="#8e6232" stroke-width="3"/>
+        <!-- mic grille dots -->
+        <g fill="#8e6232" opacity=".7">
+          <circle cx="204" cy="132" r="1.6"/><circle cx="210" cy="128" r="1.6"/><circle cx="216" cy="132" r="1.6"/>
+          <circle cx="204" cy="138" r="1.6"/><circle cx="210" cy="134" r="1.6"/><circle cx="216" cy="138" r="1.6"/>
+        </g>
+
+        <!-- eyes: bezel, LCD, iris, pupil, lid, dome shine -->
+        <g id="eyeL" transform="translate(155 165)">
+          <circle r="44" fill="#3b2a1a"/>
+          <circle r="37" fill="#0e1214"/>
+          <circle r="27" fill="url(#iris)"/>
+          <circle r="12" cx="3" cy="2" fill="#050505"/>
+          <path d="M-40 -6 A 40 40 0 0 1 40 -6 Q 0 4 -40 -6 Z" fill="#7a4c22" stroke="#4d2f12" stroke-width="2"/>
+          <path d="M-40 -6 Q 0 4 40 -6" fill="none" stroke="#c99a5e" stroke-width="2.5"/>
+          <ellipse cx="-14" cy="14" rx="9" ry="5" fill="#fff" opacity=".35" transform="rotate(-30 -14 14)"/>
+          <circle r="40" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width="2"/>
+        </g>
+        <g transform="translate(265 165)">
+          <circle r="44" fill="#3b2a1a"/>
+          <circle r="37" fill="#0e1214"/>
+          <circle r="27" fill="url(#iris)"/>
+          <circle r="12" cx="3" cy="2" fill="#050505"/>
+          <path d="M-40 -6 A 40 40 0 0 1 40 -6 Q 0 4 -40 -6 Z" fill="#7a4c22" stroke="#4d2f12" stroke-width="2"/>
+          <path d="M-40 -6 Q 0 4 40 -6" fill="none" stroke="#c99a5e" stroke-width="2.5"/>
+          <ellipse cx="-14" cy="14" rx="9" ry="5" fill="#fff" opacity=".35" transform="rotate(-30 -14 14)"/>
+          <circle r="40" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width="2"/>
+        </g>
+
+        <!-- beak: upper fixed, lower hinged slightly open -->
+        <path d="M196 214 Q 204 248 210 252 Q 216 248 224 214 Z" fill="#7a3a3a"/>
+        <path d="M201 228 Q 210 240 219 228 Q 210 234 201 228 Z" fill="#d98c8c"/>
+        <path d="M190 196 Q 210 186 230 196 Q 226 222 210 238 Q 194 222 190 196 Z" fill="url(#beak)" stroke="#6e6345" stroke-width="2"/>
+        <path d="M198 240 Q 210 262 222 240 Q 210 246 198 240 Z" fill="#b3a57d" stroke="#6e6345" stroke-width="1.6"/>
+
+        <!-- scale bar -->
+        <g>
+          <line class="dim" x1="398" y1="22" x2="398" y2="518"/>
+          <line class="dim" x1="392" y1="22" x2="404" y2="22"/>
+          <line class="dim" x1="392" y1="518" x2="404" y2="518"/>
+          <text class="dimtext" x="392" y="276" transform="rotate(-90 392 276)" text-anchor="middle">≈ 310 mm</text>
+        </g>
+      </svg>
+    </figure>
+
+    <!-- ============ CUTAWAY ============ -->
+    <figure>
+      <figcaption><b>Cutaway: what's under the skin</b><span>skin dashed · foam shaded · PETG skeleton blue-grey</span></figcaption>
+      <svg viewBox="0 0 420 540" role="img" aria-label="Cutaway diagram of the owl showing the fabric skin, foam padding, PETG skeleton, AA batteries and electronics in the base, a spine with speaker, the neck bearing, clutch and pan servo, and the head frame holding the LCD eyes, eyelid servos, beak servo and spring, tuft servos and microphone. Numbered callouts match the legend.">
+        <defs>
+          <pattern id="foam" width="8" height="8" patternUnits="userSpaceOnUse">
+            <rect width="8" height="8" fill="#e9dcc0"/>
+            <circle cx="2" cy="2" r="1" fill="#d4c29c"/><circle cx="6" cy="6" r="1" fill="#d4c29c"/>
+          </pattern>
+        </defs>
+        <!-- foam bodies -->
+        <ellipse cx="210" cy="372" rx="132" ry="130" fill="url(#foam)"/>
+        <ellipse cx="210" cy="170" rx="118" ry="98" fill="url(#foam)"/>
+        <!-- skin outlines -->
+        <ellipse class="skin-out" cx="210" cy="372" rx="138" ry="136"/>
+        <ellipse class="skin-out" cx="210" cy="170" rx="124" ry="104"/>
+        <!-- wing skins + paddles + shoulder servos -->
+        <path class="skin-out" d="M104 298 C 62 314 38 376 52 432 C 62 422 72 420 80 427 C 84 414 94 411 102 416 C 104 404 112 400 118 404"/>
+        <path class="skin-out" d="M316 298 C 358 314 382 376 368 432 C 358 422 348 420 340 427 C 336 414 326 411 318 416 C 316 404 308 400 302 404"/>
+        <path d="M116 312 L 72 410" stroke="#8ea2ae" stroke-width="9" stroke-linecap="round"/>
+        <path d="M304 312 L 348 410" stroke="#8ea2ae" stroke-width="9" stroke-linecap="round"/>
+        <rect x="112" y="298" width="28" height="16" rx="2" fill="#2a3a6a"/>
+        <rect x="280" y="298" width="28" height="16" rx="2" fill="#2a3a6a"/>
+        <circle cx="116" cy="312" r="5" fill="#d8a34a" stroke="#7d5f22"/>
+        <circle cx="304" cy="312" r="5" fill="#d8a34a" stroke="#7d5f22"/>
+        <path class="skin-out" d="M118 112 C 100 70 92 44 98 22 C 120 44 140 66 158 92"/>
+        <path class="skin-out" d="M302 112 C 320 70 328 44 322 22 C 300 44 280 66 262 92"/>
+
+        <!-- base tub -->
+        <rect x="104" y="410" width="212" height="92" rx="16" fill="#8ea2ae" stroke="#4e5f69" stroke-width="2"/>
+        <rect x="114" y="418" width="192" height="32" rx="4" fill="#a9bac3"/>
+        <!-- Pi + PCA9685 + bucks + INA219 -->
+        <rect x="120" y="422" width="74" height="24" rx="2" fill="#2f7d4f" stroke="#1d4f31"/>
+        <rect x="128" y="426" width="14" height="10" fill="#c7c7c7"/><rect x="170" y="426" width="18" height="16" fill="#1a1a1a"/>
+        <rect x="200" y="424" width="46" height="20" rx="2" fill="#2d5fa8" stroke="#1b3c6c"/>
+        <rect x="252" y="424" width="22" height="20" rx="2" fill="#7b3fa0"/>
+        <rect x="278" y="424" width="22" height="20" rx="2" fill="#7b3fa0"/>
+        <!-- batteries -->
+        <g id="aa"></g>
+        <rect x="104" y="492" width="212" height="10" rx="3" fill="#6d808b"/>
+        <!-- power button -->
+        <circle cx="210" cy="497" r="5" fill="#d1452f" stroke="#7a2416"/>
+
+        <!-- spine -->
+        <rect x="198" y="250" width="24" height="160" rx="4" fill="#8ea2ae" stroke="#4e5f69" stroke-width="2"/>
+        <!-- speaker on spine front -->
+        <circle cx="210" cy="340" r="26" fill="#2b2b2b"/><circle cx="210" cy="340" r="17" fill="#4a4a4a"/><circle cx="210" cy="340" r="6" fill="#222"/>
+        <!-- chest touch pad -->
+        <rect x="168" y="388" width="84" height="6" rx="3" fill="#c7782f"/>
+        <!-- pan servo MG996R + clutch + bearing -->
+        <rect x="186" y="262" width="48" height="26" rx="3" fill="#232323"/>
+        <rect x="192" y="252" width="36" height="5" fill="#b9c0c6"/><rect x="192" y="246" width="36" height="5" fill="#d8a34a"/>
+        <ellipse cx="210" cy="238" rx="22" ry="7" fill="#b9c0c6" stroke="#6b7378" stroke-width="2"/>
+        <ellipse cx="210" cy="238" rx="7" ry="2.5" fill="#6b7378"/>
+
+        <!-- head frame -->
+        <rect x="112" y="98" width="196" height="124" rx="46" fill="none" stroke="#8ea2ae" stroke-width="9"/>
+        <rect x="112" y="98" width="196" height="124" rx="46" fill="none" stroke="#4e5f69" stroke-width="1"/>
+        <!-- tilt servo -->
+        <rect x="196" y="208" width="28" height="16" rx="2" fill="#2a3a6a"/>
+        <!-- LCDs + domes + lids -->
+        <g>
+          <rect x="117" y="127" width="76" height="76" rx="6" fill="#1b4d35"/>
+          <circle cx="155" cy="165" r="34" fill="#0e1214"/><circle cx="155" cy="165" r="22" fill="#c47a26"/><circle cx="155" cy="165" r="10" fill="#050505"/>
+          <circle cx="155" cy="165" r="38" fill="none" stroke="#9fd0ff" stroke-width="2.5" stroke-opacity=".8"/>
+          <path d="M115 159 A 40 40 0 0 1 195 159" fill="none" stroke="#7a4c22" stroke-width="6"/>
+          <rect x="227" y="127" width="76" height="76" rx="6" fill="#1b4d35"/>
+          <circle cx="265" cy="165" r="34" fill="#0e1214"/><circle cx="265" cy="165" r="22" fill="#c47a26"/><circle cx="265" cy="165" r="10" fill="#050505"/>
+          <circle cx="265" cy="165" r="38" fill="none" stroke="#9fd0ff" stroke-width="2.5" stroke-opacity=".8"/>
+          <path d="M225 159 A 40 40 0 0 1 305 159" fill="none" stroke="#7a4c22" stroke-width="6"/>
+          <!-- lid pivots -->
+          <circle cx="115" cy="160" r="4" fill="#b9c0c6" stroke="#555"/><circle cx="305" cy="160" r="4" fill="#b9c0c6" stroke="#555"/>
+          <!-- lid servos + pushrods -->
+          <rect x="120" y="206" width="26" height="14" rx="2" fill="#2a3a6a"/><rect x="274" y="206" width="26" height="14" rx="2" fill="#2a3a6a"/>
+          <path d="M133 206 L 116 165" stroke="#777" stroke-width="1.6"/><path d="M287 206 L 304 165" stroke="#777" stroke-width="1.6"/>
+        </g>
+        <!-- mic -->
+        <circle cx="210" cy="132" r="8" fill="#222"/><circle cx="210" cy="132" r="3" fill="#888"/>
+        <!-- head touch pad -->
+        <path d="M150 76 Q 210 58 270 76" fill="none" stroke="#c7782f" stroke-width="5" stroke-linecap="round"/>
+        <!-- tuft servos + paddles -->
+        <rect x="132" y="104" width="24" height="14" rx="2" fill="#2a3a6a"/><rect x="264" y="104" width="24" height="14" rx="2" fill="#2a3a6a"/>
+        <path d="M144 104 L 112 50" stroke="#8ea2ae" stroke-width="7" stroke-linecap="round"/>
+        <path d="M276 104 L 308 50" stroke="#8ea2ae" stroke-width="7" stroke-linecap="round"/>
+        <!-- beak + servo + spring + tongue pad -->
+        <path d="M190 196 Q 210 186 230 196 Q 226 222 210 238 Q 194 222 190 196 Z" fill="#e2d6b3" stroke="#6e6345" stroke-width="2"/>
+        <path d="M198 240 Q 210 262 222 240 Q 210 246 198 240 Z" fill="#b3a57d" stroke="#6e6345" stroke-width="1.6"/>
+        <rect x="202" y="232" width="16" height="4" fill="#c7782f"/>
+        <rect x="232" y="226" width="22" height="13" rx="2" fill="#2a3a6a"/>
+        <path d="M232 232 L 222 244" stroke="#777" stroke-width="2"/>
+        <path d="M186 232 l -4 4 l 6 3 l -6 3 l 6 3 l -6 3 l 4 3" fill="none" stroke="#555" stroke-width="1.5"/>
+        <path d="M188 251 L 200 249" stroke="#555" stroke-width="1.5"/>
+
+        <!-- callouts -->
+        <g id="callouts"></g>
+      </svg>
+      <ol class="legend" aria-label="Cutaway legend">
+        <li><span class="n">1</span><span>Fur tufts over PETG paddles, breakaway fit on SG90 servos</span></li>
+        <li><span class="n">2</span><span>Head touch pad: copper tape under the fabric</span></li>
+        <li><span class="n">3</span><span>USB mic behind the perforated facial disc</span></li>
+        <li><span class="n">4</span><span>1.28" round LCD under a polycarbonate dome</span></li>
+        <li><span class="n">5</span><span>PETG eyelid on a steel pivot pin</span></li>
+        <li><span class="n">6</span><span>Lid servo (MG90S) with spring-wire pushrod</span></li>
+        <li><span class="n">7</span><span>Printed PETG beak with a touch pad on the tongue for feeding</span></li>
+        <li><span class="n">8</span><span>Beak servo opens via a cam; a light spring closes it</span></li>
+        <li><span class="n">9</span><span>Head tilt servo (MG90S) on the head frame</span></li>
+        <li><span class="n">10</span><span>608 bearing carries the head's weight</span></li>
+        <li><span class="n">11</span><span>Slip clutch and MG996R pan servo</span></li>
+        <li><span class="n">12</span><span>50–57 mm speaker behind thin chest fabric</span></li>
+        <li><span class="n">13</span><span>Chest touch pad (another on the back)</span></li>
+        <li><span class="n">14</span><span>Pi 3B+, PCA9685, 2× buck converters, INA219</span></li>
+        <li><span class="n">15</span><span>8× AA NiMH behind a screw-shut lid, low for stability</span></li>
+        <li><span class="n">16</span><span>Single power button (latching soft-off)</span></li>
+        <li><span class="n">17</span><span>Little wings: padded PETG paddles on MG90S shoulder servos with a slip hub; the wing skin is sewn to the body, so there's no gap at the root</span></li>
+      </ol>
+    </figure>
+  </div>
+
+  <div class="notes">
+    <div><h2>Soft outside</h2>Removable minky skin with felt feather appliqué. Head and body skins are separate; the neck ruff hides the gap when the head turns.</div>
+    <div><h2>Hard inside</h2>PETG skeleton carries all loads. No magnets, no small parts that can come loose, and the battery lid needs a screwdriver.</div>
+    <div><h2>Bottom-heavy</h2>About 220 g of AA cells sit in the base (room for a second pack), so the owl rights itself like a weighted toy and lands base-first.</div>
+  </div>
+  <p class="foot">Concept illustration only, not to scale. Proportions will change once the CAD skeleton exists.</p>
+</div>
+
+<script>
+(function () {
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  // neck ruff: scalloped feather arcs along an ellipse
+  var ruff = document.getElementById("ruff");
+  for (var i = 0; i <= 22; i++) {
+    var t = Math.PI * (0.06 + 0.88 * i / 22);
+    var x = 210 - Math.cos(t) * 118, y = 252 + Math.sin(t) * 22;
+    el("ellipse", { cx: x.toFixed(1), cy: y.toFixed(1), rx: 13, ry: 17, fill: i % 2 ? "#b07a3f" : "#c58d4c", stroke: "#6e4520", "stroke-width": 1.3 }, ruff);
+  }
+  // chest chevrons
+  var ch = document.getElementById("chevrons");
+  [[300, 3], [332, 4], [364, 4], [396, 5], [428, 4], [460, 3]].forEach(function (row) {
+    var y = row[0], n = row[1], span = 30;
+    for (var j = 0; j < n; j++) {
+      var cx = 210 + (j - (n - 1) / 2) * span;
+      el("path", { d: "M" + (cx - 7) + " " + (y - 4) + " L" + cx + " " + (y + 4) + " L" + (cx + 7) + " " + (y - 4) }, ch);
+    }
+  });
+  // AA cells: 2 rows of 4
+  var aa = document.getElementById("aa");
+  for (var r = 0; r < 2; r++) for (var c = 0; c < 4; c++) {
+    var bx = 122 + c * 46, by = 456 + r * 17;
+    el("rect", { x: bx, y: by, width: 40, height: 13, rx: 3, fill: "#3d8fd1", stroke: "#1e4f78" }, aa);
+    el("rect", { x: bx + 40, y: by + 4, width: 3, height: 5, fill: "#bbb" }, aa);
+  }
+  // numbered callouts: [n, targetX, targetY, labelX, labelY]
+  var co = document.getElementById("callouts");
+  [
+    [1, 112, 52, 72, 40], [2, 210, 66, 210, 34], [3, 210, 132, 248, 108], [4, 165, 180, 64, 150],
+    [5, 120, 150, 64, 118], [6, 133, 213, 64, 214], [7, 212, 245, 160, 278], [8, 246, 232, 300, 252],
+    [9, 210, 216, 360, 190], [10, 228, 238, 350, 232], [11, 232, 274, 356, 284], [12, 232, 330, 356, 330],
+    [13, 250, 391, 356, 380], [14, 160, 434, 64, 418], [15, 140, 468, 64, 470], [16, 210, 497, 300, 528], [17, 126, 306, 40, 300]
+  ].forEach(function (c) {
+    el("line", { x1: c[1], y1: c[2], x2: c[3], y2: c[4], class: "lead" }, co);
+    el("circle", { cx: c[1], cy: c[2], r: 2.2, fill: "currentColor", class: "lead" }, co);
+    var g = el("g", { class: "co" }, co);
+    el("circle", { cx: c[3], cy: c[4], r: 10 }, g);
+    var t = el("text", { x: c[3], y: c[4] }, g);
+    t.textContent = c[0];
+  });
+})();
+</script>
+
+</body></html>

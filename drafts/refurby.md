@@ -33,6 +33,12 @@ Child safety comes first, ahead of being tough and being charming:
 - Quiet hours at bedtime, a volume cap, and a log for parents.
 - I ran a safety evaluation on two sizes of model and chose the larger one.
 
+## Concept Sketch
+
+Before any CAD, I made a concept sketch: the finished owl, with flapping wings, and a cutaway of what's under the skin. Some of it has changed since, but it's where the design started. You can also [open it on its own page](../assets/refurby/concept-sketch.html).
+
+<iframe class="sketch-frame" src="../assets/refurby/concept-sketch.html" title="Gwdihŵ concept sketch: the finished owl with flapping wings, and a labelled cutaway" loading="lazy" onload="var f=this,r=function(){f.style.height=f.contentDocument.body.scrollHeight+'px'};r();addEventListener('resize',r)"></iframe>
+
 ## The Body
 
 All the parts are designed in code with build123d. Inside is a tough printed skeleton: a stack of base tiers holding the Pi, amp and batteries, with the head on top. The outside will be padding and a washable fur skin.
